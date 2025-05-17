@@ -17,12 +17,7 @@
 # some flags
 ###########################################################
 CC = mcc
-CUDA_ARCH=--offload-arch=mp_22
-ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 $(CUDA_ARCH)
-else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
-endif
+CFLAGS = -std=c++14 -O3 --offload-arch=mp_22
 INC = -I./
 LDFLAGS = 
 LIBS = -lmublas -lmusart
@@ -34,7 +29,7 @@ LIBS = -lmublas -lmusart
 SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.mu)   \
 	$(wildcard minimize/*.mu)     \
-	$(wildcard phonon/*.mu)       \
+//	$(wildcard phonon/*.mu)       \
 	$(wildcard integrate/*.mu)    \
 	$(wildcard mc/*.mu)           \
 	$(wildcard force/*.mu)        \
@@ -49,13 +44,8 @@ SOURCES_NEP =                     \
 ###########################################################
 # object files
 ###########################################################
-ifdef OS # For Windows with the cl.exe compiler
-OBJ_GPUMD = $(SOURCES_GPUMD:.mu=.obj)
-OBJ_NEP = $(SOURCES_NEP:.mu=.obj)
-else
 OBJ_GPUMD = $(SOURCES_GPUMD:.mu=.o)
 OBJ_NEP = $(SOURCES_NEP:.mu=.o)
-endif
 
 
 ###########################################################
@@ -93,28 +83,6 @@ nep: $(OBJ_NEP)
 ###########################################################
 # rules for building object files
 ###########################################################
-ifdef OS # for Windows
-integrate/%.obj: integrate/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.obj: mc/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.obj: minimize/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.obj: force/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.obj: measure/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.obj: main_gpumd/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.obj: utilities/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.obj: model/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.obj: phonon/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.obj: main_nep/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-else # for Linux
 integrate/%.o: integrate/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 mc/%.o: mc/%.mu $(HEADERS)
@@ -131,11 +99,10 @@ utilities/%.o: utilities/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 model/%.o: model/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.o: phonon/%.mu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+//phonon/%.o: phonon/%.mu $(HEADERS)
+//	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-endif
 
 
 ###########################################################
