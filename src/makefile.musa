@@ -1,0 +1,150 @@
+###########################################################
+# Note: 
+# 1) You can modify -arch=sm_60 according to 
+#    your GPU architecture. For compute capability < 6.0,
+#    need to add -DUSE_KEPLER to CFLAGS.
+# 2) For Windows systems, if you get errors like 
+#    c1xx : fatal error C1083: Cannot open source file: ...
+#    You can consider removing -Xcompiler "/wd 4819"
+# 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
+#    and remove it otherwise.
+# 4) Add -DUSE_TABLE to speed up MD simulations with NEP
+#    using pre-computed radial functions in the descriptors
+###########################################################
+
+
+###########################################################
+# some flags
+###########################################################
+CC = mcc
+CUDA_ARCH=--offload-arch=mp_22
+ifdef OS # For Windows with the cl.exe compiler
+CFLAGS = -O3 $(CUDA_ARCH)
+else # For linux
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+endif
+INC = -I./
+LDFLAGS = 
+LIBS = -lmublas -lmusart
+
+
+###########################################################
+# source files
+###########################################################
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.mu)   \
+	$(wildcard minimize/*.mu)     \
+	$(wildcard phonon/*.mu)       \
+	$(wildcard integrate/*.mu)    \
+	$(wildcard mc/*.mu)           \
+	$(wildcard force/*.mu)        \
+	$(wildcard measure/*.mu)      \
+	$(wildcard model/*.mu)        \
+	$(wildcard utilities/*.mu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.mu)     \
+	$(wildcard utilities/*.mu)
+
+
+###########################################################
+# object files
+###########################################################
+ifdef OS # For Windows with the cl.exe compiler
+OBJ_GPUMD = $(SOURCES_GPUMD:.mu=.obj)
+OBJ_NEP = $(SOURCES_NEP:.mu=.obj)
+else
+OBJ_GPUMD = $(SOURCES_GPUMD:.mu=.o)
+OBJ_NEP = $(SOURCES_NEP:.mu=.o)
+endif
+
+
+###########################################################
+# headers
+###########################################################
+HEADERS =                         \
+	$(wildcard utilities/*.muh)   \
+	$(wildcard main_gpumd/*.muh)  \
+	$(wildcard integrate/*.muh)   \
+	$(wildcard mc/*.muh)          \
+	$(wildcard minimize/*.muh)    \
+	$(wildcard force/*.muh)       \
+	$(wildcard measure/*.muh)     \
+	$(wildcard model/*.muh)       \
+	$(wildcard phonon/*.muh)      \
+	$(wildcard main_nep/*.muh)
+
+
+###########################################################
+# ex.mutables
+###########################################################
+all: gpumd nep
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The gpumd ex.mutable is successfully compiled!
+	@echo =================================================
+nep: $(OBJ_NEP)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The nep ex.mutable is successfully compiled!
+	@echo =================================================
+
+
+###########################################################
+# rules for building object files
+###########################################################
+ifdef OS # for Windows
+integrate/%.obj: integrate/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.obj: mc/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.obj: minimize/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.obj: force/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.obj: utilities/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.obj: model/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.obj: phonon/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.obj: main_nep/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else # for Linux
+integrate/%.o: integrate/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.o: phonon/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
+
+
+###########################################################
+# clean up
+###########################################################
+clean:
+ifdef OS
+	del /s *.obj *.exp *.lib *.exe
+else
+	rm -f */*.o gpumd nep
+endif
+
