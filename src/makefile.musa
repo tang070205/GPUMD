@@ -29,7 +29,7 @@ LIBS = -lmublas -lmusart
 SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.mu)   \
 	$(wildcard minimize/*.mu)     \
-//	$(wildcard phonon/*.mu)       \
+#	$(wildcard phonon/*.mu)       \#
 	$(wildcard integrate/*.mu)    \
 	$(wildcard mc/*.mu)           \
 	$(wildcard force/*.mu)        \
@@ -52,16 +52,16 @@ OBJ_NEP = $(SOURCES_NEP:.mu=.o)
 # headers
 ###########################################################
 HEADERS =                         \
-	$(wildcard utilities/*.muh)   \
-	$(wildcard main_gpumd/*.muh)  \
-	$(wildcard integrate/*.muh)   \
-	$(wildcard mc/*.muh)          \
-	$(wildcard minimize/*.muh)    \
-	$(wildcard force/*.muh)       \
-	$(wildcard measure/*.muh)     \
-	$(wildcard model/*.muh)       \
-	$(wildcard phonon/*.muh)      \
-	$(wildcard main_nep/*.muh)
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+#	$(wildcard phonon/*.cuh)      \#
+	$(wildcard main_nep/*.cuh)
 
 
 ###########################################################
@@ -99,8 +99,8 @@ utilities/%.o: utilities/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 model/%.o: model/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-//phonon/%.o: phonon/%.mu $(HEADERS)
-//	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+#phonon/%.o: phonon/%.mu $(HEADERS)
+#	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.mu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
@@ -109,9 +109,5 @@ main_nep/%.o: main_nep/%.mu $(HEADERS)
 # clean up
 ###########################################################
 clean:
-ifdef OS
-	del /s *.obj *.exp *.lib *.exe
-else
 	rm -f */*.o gpumd nep
-endif
 
