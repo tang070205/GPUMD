@@ -1,0 +1,101 @@
+###########################################################
+# Note: 
+# 1) You can modify mp_22 according to your GPU architecture.
+# 2) Do not remove -DUSE_MUSA.
+# 3) You need to first execute find ./ -type f -name "*.cu" ! -path "./phonon/hessian.cu" ! -path "./utilities/cusolver_wrapper.cu" -exec sh -c 'cp "$$0" "$${0%.cu}.mu" ' {} \;
+###########################################################
+
+
+###########################################################
+# some flags
+###########################################################
+CC = mcc
+CFLAGS = -std=c++14 -O3 --offload-arch=mp_22 -DUSE_MUSA
+INC = -I./
+LDFLAGS = 
+LIBS = -L/usr/local/cusa/lib -lmublas -lmusart
+
+
+###########################################################
+# source files
+###########################################################
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.mu)   \
+	$(wildcard minimize/*.mu)     \
+	$(wildcard integrate/*.mu)    \
+	$(wildcard mc/*.mu)           \
+	$(wildcard force/*.mu)        \
+	$(wildcard measure/*.mu)      \
+	$(wildcard model/*.mu)        \
+	$(wildcard utilities/*.mu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.mu)     \
+	$(wildcard utilities/*.mu)
+
+
+###########################################################
+# object files
+###########################################################
+OBJ_GPUMD = $(SOURCES_GPUMD:.mu=.o)
+OBJ_NEP = $(SOURCES_NEP:.mu=.o)
+
+
+###########################################################
+# headers
+###########################################################
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard main_nep/*.cuh)
+
+
+###########################################################
+# ex.cutables
+###########################################################
+all: gpumd nep
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The gpumd ex.cutable is successfully compiled!
+	@echo =================================================
+nep: $(OBJ_NEP)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The nep ex.cutable is successfully compiled!
+	@echo =================================================
+
+
+###########################################################
+# rules for building object files
+###########################################################
+integrate/%.o: integrate/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.mu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+
+###########################################################
+# clean up
+###########################################################
+clean:
+	rm -f */*.o gpumd nep
