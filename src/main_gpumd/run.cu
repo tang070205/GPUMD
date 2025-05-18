@@ -60,7 +60,9 @@ Run simulation according to the inputs in the run.in file.
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
+#ifndef USE_MUSA
 #include "phonon/hessian.cuh"
+#endif
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
@@ -370,7 +372,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
       atom.potential_per_atom,
       atom.force_per_atom,
       atom.virial_per_atom);
-  } else if (strcmp(param[0], "compute_phonon") == 0) {
+  }
+#ifndef USE_MUSA
+  else if (strcmp(param[0], "compute_phonon") == 0) {
     Hessian hessian;
     hessian.parse(param, num_param);
     hessian.compute(
@@ -383,7 +387,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
       atom.potential_per_atom,
       atom.force_per_atom,
       atom.virial_per_atom);
-  } else if (strcmp(param[0], "compute_cohesive") == 0) {
+  }
+#endif
+  else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 0);
     cohesive.compute(
