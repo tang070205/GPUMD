@@ -93,6 +93,86 @@
 #define gpusolverDnZheevjBatched_bufferSize hipsolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched hipsolverDnZheevjBatched
 
+#elif defined(USE_MUSA) // MUSA for Moore card
+
+#include <musa_runtime.h>
+
+// memory manipulation
+#define gpuMalloc musaMalloc
+#define gpuMallocManaged musaMallocManaged
+#define gpuFree musaFree
+#define gpuMemcpy musaMemcpy
+#define gpuMemcpyFromSymbol musaMemcpyFromSymbol
+#define gpuMemcpyToSymbol musaMemcpyToSymbol
+#define gpuGetSymbolAddress musaGetSymbolAddress
+#define gpuMemcpyHostToDevice musaMemcpyHostToDevice
+#define gpuMemcpyDeviceToHost musaMemcpyDeviceToHost
+#define gpuMemcpyHostToHost musaMemcpyHostToHost
+#define gpuMemcpyDeviceToDevice musaMemcpyDeviceToDevice
+#define gpuMemset musaMemset
+
+// error handling
+#define gpuError_t musaError_t
+#define gpuSuccess musaSuccess
+#define gpuGetErrorString musaGetErrorString
+#define gpuGetLastError musaGetLastError
+
+// device manipulation
+#define gpuSetDevice musaSetDevice
+#define gpuGetDeviceCount musaGetDeviceCount
+#define gpuDeviceProp musaDeviceProp
+#define gpuGetDeviceProperties musaGetDeviceProperties
+#define gpuDeviceCanAccessPeer musaDeviceCanAccessPeer
+#define gpuDeviceEnablePeerAccess musaDeviceEnablePeerAccess
+#define gpuDeviceSynchronize musaDeviceSynchronize
+
+// stream
+#define gpuStream_t musaStream_t
+#define gpuStreamCreate musaStreamCreate
+#define gpuStreamDestroy musaStreamDestroy
+
+// random numbers
+#define gpurandState murandState
+#define gpurand_normal_double murand_normal_double
+#define gpurand_normal murand_normal
+#define gpurand_init murand_init
+
+// blas
+#define gpublasHandle_t mublasHandle_t
+#define gpublasSgemv mublasSgemv
+#define gpublasSgemm mublasSgemm
+#define gpublasSdgmm mublasSdgmm
+#define gpublasDgemv mublasDgemv
+#define gpublasDgemvBatched mublasDgemvBatched
+#define gpublasDestroy mublasDestroy
+#define gpublasCreate mublasCreate
+#define GPUBLAS_SIDE_LEFT MUBLAS_SIDE_LEFT
+#define GPUBLAS_OP_N MUBLAS_OP_N
+#define GPUBLAS_OP_T MUBLAS_OP_T
+/*
+// lapack
+#define gpuDoubleComplex muDoubleComplex
+#define gpusolverDnHandle_t musolverDnHandle_t
+#define gpusolverDnCreate musolverDnCreate
+#define gpusolverDnDestroy musolverDnDestroy
+#define gpusolverEigMode_t musolverEigMode_t
+#define gpusolverFillMode_t mublasFillMode_t // why mublas?
+#define GPUSOLVER_EIG_MODE_NOVECTOR MUSOLVER_EIG_MODE_NOVECTOR
+#define GPUSOLVER_EIG_MODE_VECTOR MUSOLVER_EIG_MODE_VECTOR
+#define GPUSOLVER_FILL_MODE_LOWER MUBLAS_FILL_MODE_LOWER // why mublas?
+#define gpusolverSyevjInfo_t syevjInfo_t                 // why not musolverSyevjInfo_t?
+#define gpusolverDnCreateSyevjInfo musolverDnCreateSyevjInfo
+#define gpusolverDnDestroySyevjInfo musolverDnDestroySyevjInfo
+#define gpusolverDnZheevj_bufferSize musolverDnZheevj_bufferSize
+#define gpusolverDnZheevj musolverDnZheevj
+#define gpusolverDnZheevd_bufferSize musolverDnZheevd_bufferSize
+#define gpusolverDnZheevd musolverDnZheevd
+#define gpusolverDnDsyevj_bufferSize musolverDnDsyevj_bufferSize
+#define gpusolverDnDsyevj musolverDnDsyevj
+#define gpusolverDnZheevjBatched_bufferSize musolverDnZheevjBatched_bufferSize
+#define gpusolverDnZheevjBatched musolverDnZheevjBatched
+*/
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
