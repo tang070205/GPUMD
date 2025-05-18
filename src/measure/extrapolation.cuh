@@ -17,6 +17,8 @@
 
 #ifdef USE_HIP
 #include <hipblas/hipblas.h>
+#elif defined(USE_MUSA)
+#include <mublas.h>
 #else
 #include <cublas_v2.h>
 #endif
