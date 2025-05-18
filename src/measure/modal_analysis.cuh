@@ -22,9 +22,11 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_HIP
-  #include <hipblas/hipblas.h>
+#include <hipblas/hipblas.h>
+#elif defined(USE_MUSA)
+#include <mublas.h>
 #else
-  #include <cublas_v2.h>
+#include <cublas_v2.h>
 #endif
 #include <fstream>
 #include <iostream>
