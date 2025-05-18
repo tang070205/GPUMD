@@ -13,7 +13,7 @@ CC = mcc
 CFLAGS = -std=c++14 -O3 --offload-arch=mp_22 -DUSE_MUSA
 INC = -I./
 LDFLAGS = 
-LIBS = -L/usr/local/cusa/lib -lmublas -lmusart
+LIBS = -L/usr/local/musa/lib -lmublas -lmusart
 
 
 ###########################################################
