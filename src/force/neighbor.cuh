@@ -18,6 +18,10 @@
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 
+#ifdef USE_MUSA
+__device__ float rnorm3df(float a, float b, float c) { return 1.0f / sqrtf(a * a + b * b + c * c); }
+#endif
+
 void find_cell_list(
   const double rc,
   const int* num_bins,
