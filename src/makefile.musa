@@ -2,7 +2,7 @@
 # Note: 
 # 1) You can modify mp_22 according to your GPU architecture.
 # 2) Do not remove -DUSE_MUSA.
-# 3) You need to first execute find ./ -type f -name "*.cu" ! -path "./phonon/hessian.cu" ! -path "./utilities/cusolver_wrapper.cu" -exec sh -c 'cp "$$0" "$${0%.cu}.mu" ' {} \;
+# 3) You need to first execute find ./ -type f -name "*.cu" ! -path "./phonon/hessian.cu" ! -path "./utilities/cusolver_wrapper.cu" -exec sh -c 'cp "$0" "${0%.cu}.mu" ' {} \;
 ###########################################################
 
 
