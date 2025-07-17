@@ -29,7 +29,6 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/read_file.cuh"
 #include <vector>
 #include <cstring>
-#include <fstress>
 #include <map>
 #include <cmath>
 #include <sstream>
@@ -74,7 +73,7 @@ double mass_of(const std::string& sym) {
 void Hessian::compute(
   Force& force,
   Box& box,
-  std::vector<std::string> cpu_atom_symbol;
+  std::vector<std::string> cpu_atom_symbol,
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
@@ -83,7 +82,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(cpu_atom_symbol, type.size());
+  initialize(cpu_atom_symbol, box, type.size());
   find_H(
     force,
     box,
@@ -111,13 +110,12 @@ void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
   size_t cx, cy, cz;
   if (!(fin >> key >> cx >> cy >> cz) || key != "replicate")
     PRINT_INPUT_ERROR("replicate is required in run.in\n");
-  const size_t cx = r[0], cy = r[1], cz = r[2];
   size_t num_basis = N / (cx * cy * cz);
 
   basis.resize(num_basis);
   mass.resize(num_basis);
   for (size_t i = 0; i < num_basis; ++i) {
-    basis[i] = cpu_atom_symbol[i];
+    basis[i] = i;
     mass[i]  = mass_of(cpu_atom_symbol[i]);
   }
 
@@ -143,7 +141,7 @@ void Hessian::read_kpoints()
   fclose(fid);
 }
 */
-void Hessian::create_kpoints(Box& box)
+void Hessian::create_kpoints(const Box& box)
 {
   const int num_kpoints = 501;
   const double PI = 3.14159265358979323846;
@@ -167,9 +165,6 @@ void Hessian::create_kpoints(Box& box)
     frac_k.push_back(kpt);
   }
   kfile.close();
-
-  const int num_kpoints = 501;
-  const double PI = 3.14159265358979323846;
 
   auto dot = [](const auto& a, const auto& b) {
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
@@ -241,7 +236,7 @@ void Hessian::create_kpoints(Box& box)
   }
 }
 
-void Hessian::initialize(std::vector<std::string> cpu_atom_symbol, Box& box， size_t N)
+void Hessian::initialize(std::vector<std::string> cpu_atom_symbol, const Box& box, size_t N)
 {
   create_basis(cpu_atom_symbol, N);
   create_kpoints(box);
