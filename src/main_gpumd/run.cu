@@ -376,6 +376,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     hessian.compute(
       force,
       box,
+      atom.cpu_atom_symbol,
       atom.cpu_position_per_atom,
       atom.position_per_atom,
       atom.type,
