@@ -31,6 +31,9 @@ Then calculate the dynamical matrices with different k points.
 #include <cstring>
 #include <fstress>
 #include <map>
+#include <cmath>
+#include <sstream>
+#include <string>
 
 namespace {
 const std::map<std::string, double> table = {
@@ -69,9 +72,9 @@ double mass_of(const std::string& sym) {
 }
 
 void Hessian::compute(
-  Atom& atoms,
   Force& force,
   Box& box,
+  std::vector<std::string> cpu_atom_symbol;
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
@@ -80,7 +83,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(Atom& atoms, type.size());
+  initialize(cpu_atom_symbol, type.size());
   find_H(
     force,
     box,
@@ -101,7 +104,7 @@ void Hessian::compute(
   }
 }
 
-void Hessian::create_basis(Atom& atoms, size_t N)
+void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
 {
   std::ifstream fin("run.in");
   std::string key;
@@ -114,8 +117,8 @@ void Hessian::create_basis(Atom& atoms, size_t N)
   basis.resize(num_basis);
   mass.resize(num_basis);
   for (size_t i = 0; i < num_basis; ++i) {
-    basis[i] = atoms.cpu_atom_symbol[i];
-    mass[i]  = mass_of(atoms.cpu_atom_symbol[i]);
+    basis[i] = cpu_atom_symbol[i];
+    mass[i]  = mass_of(cpu_atom_symbol[i]);
   }
 
   label.resize(N);
@@ -124,7 +127,7 @@ void Hessian::create_basis(Atom& atoms, size_t N)
     for (size_t atom = 0; atom < num_basis; ++atom)
       label[idx++] = atom;
 }
-
+/*
 void Hessian::read_kpoints()
 {
   FILE* fid = fopen("kpoints.in", "r");
@@ -139,11 +142,109 @@ void Hessian::read_kpoints()
   }
   fclose(fid);
 }
-
-void Hessian::initialize(Atom& atoms, size_t N)
+*/
+void Hessian::create_kpoints(Box& box)
 {
-  create_basis(atoms, N);
-  read_kpoints();
+  const int num_kpoints = 501;
+  const double PI = 3.14159265358979323846;
+
+  const std::vector<std::vector<double>> lattice = {
+    { box.cpu_h[0] / cx, box.cpu_h[1] / cx, box.cpu_h[2] / cx },
+    { box.cpu_h[3] / cy, box.cpu_h[4] / cy, box.cpu_h[5] / cy },
+    { box.cpu_h[6] / cz, box.cpu_h[7] / cz, box.cpu_h[8] / cz }
+  };
+
+  std::vector<std::array<double, 3>> frac_k;
+  std::ifstream kfile("kpoints.in"); 
+  if (!kfile)
+    PRINT_INPUT_ERROR("Cannot open kpoints.in");
+  std::string line;
+  while (std::getline(kfile, line)) {
+    std::istringstream iss(line);
+    std::array<double, 3> kpt{};
+    if (!(iss >> kpt[0] >> kpt[1] >> kpt[2]))
+      PRINT_INPUT_ERROR("The kpoints.in format is incorrect");
+    frac_k.push_back(kpt);
+  }
+  kfile.close();
+
+  const int num_kpoints = 501;
+  const double PI = 3.14159265358979323846;
+
+  auto dot = [](const auto& a, const auto& b) {
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+  };
+  auto cross = [](const auto& a, const auto& b) -> std::vector<double> {
+    return {
+      a[1]*b[2] - a[2]*b[1],
+      a[2]*b[0] - a[0]*b[2],
+      a[0]*b[1] - a[1]*b[0]
+    };
+  };
+  auto transpose = [](const auto& m) -> std::vector<std::vector<double>> {
+    return {
+      {m[0][0], m[1][0], m[2][0]},
+      {m[0][1], m[1][1], m[2][1]},
+      {m[0][2], m[1][2], m[2][2]}
+    };
+  };
+  auto matvec = [](const auto& m, const auto& v) -> std::vector<double> {
+    return {
+      m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
+      m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
+      m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2]
+    };
+  };
+
+  const double volume = dot(lattice[0], cross(lattice[1], lattice[2]));
+  std::vector<std::vector<double>> rec_lat(3, std::vector<double>(3));
+  rec_lat[0] = cross(lattice[1], lattice[2]);
+  rec_lat[1] = cross(lattice[2], lattice[0]);
+  rec_lat[2] = cross(lattice[0], lattice[1]);
+  for (auto& v : rec_lat)
+    for (auto& x : v) x *= 2.0 * PI / volume;
+  rec_lat = transpose(rec_lat);
+
+  std::vector<double> lens;
+  double total_len = 0.0;
+  for (size_t i = 1; i < frac_k.size(); ++i) {
+    auto start = matvec(rec_lat, frac_k[i-1]);
+    auto end   = matvec(rec_lat, frac_k[i]);
+    double dx = end[0]-start[0];
+    double dy = end[1]-start[1];
+    double dz = end[2]-start[2];
+    double len = std::sqrt(dx*dx+dy*dy+dz*dz);
+    lens.push_back(len);
+    total_len += len;
+  }
+
+  std::vector<int> counts;
+  int used = 0;
+  for (size_t i = 0; i < lens.size(); ++i) {
+    int n = static_cast<int>(std::round(num_kpoints * lens[i]/total_len));
+    if (i == lens.size()-1) n = num_kpoints - used;
+    counts.push_back(n);
+    used += n;
+  }
+
+  std::vector<double> kpoints;
+  for (size_t i = 0; i < counts.size(); ++i) {
+    auto start = matvec(rec_lat, frac_k[i]);
+    auto end   = matvec(rec_lat, frac_k[i+1]);
+    int n = counts[i];
+    for (int j = 0; j < n; ++j) {
+      double t = static_cast<double>(j)/(n-1);
+      kpoints.push_back(start[0] + t*(end[0]-start[0]));
+      kpoints.push_back(start[1] + t*(end[1]-start[1]));
+      kpoints.push_back(start[2] + t*(end[2]-start[2]));
+    }
+  }
+}
+
+void Hessian::initialize(std::vector<std::string> cpu_atom_symbol, Box& box， size_t N)
+{
+  create_basis(cpu_atom_symbol, N);
+  create_kpoints(box);
   size_t num_H = num_basis * N * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
   H.resize(num_H, 0.0);
