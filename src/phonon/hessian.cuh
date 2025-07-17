@@ -26,6 +26,9 @@ class Force;
 
 class Hessian
 {
+private:
+    size_t cx = 1, cy = 1, cz = 1;
+
 public:
   double displacement = 0.005;
   double cutoff = 4.0;
