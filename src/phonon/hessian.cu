@@ -30,9 +30,10 @@ Then calculate the dynamical matrices with different k points.
 #include <vector>
 #include <cstring>
 #include <fstress>
+#include <map>
 
 namespace {
-const std::unordered_map<std::string, double> table = {
+const std::map<std::string, double> table = {
   {"H", 1.0080000000}, {"He", 4.0026020000}, {"Li", 6.9400000000}, {"Be", 9.0121831000},
   {"B", 10.8100000000}, {"C", 12.0110000000}, {"N", 14.0070000000}, {"O", 15.9990000000},
   {"F", 18.9984031630}, {"Ne", 20.1797000000}, {"Na", 22.9897692800}, {"Mg", 24.3050000000},
@@ -61,9 +62,6 @@ const std::unordered_map<std::string, double> table = {
 double mass_of(const std::string& sym) {
   auto it = table.find(sym);
   if (it == table.end()) {
-    std::cout << "The first line of the potential file should have " << number_of_types
-              << " atom symbols." << std::endl;
-    exit(1);
       PRINT_INPUT_ERROR("Error: no such element '" << sym << "'\n");
   }
   return it->second;
@@ -71,6 +69,7 @@ double mass_of(const std::string& sym) {
 }
 
 void Hessian::compute(
+  Atom& atoms,
   Force& force,
   Box& box,
   std::vector<double>& cpu_position_per_atom,
@@ -81,7 +80,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(type.size());
+  initialize(Atom& atoms, type.size());
   find_H(
     force,
     box,
@@ -141,9 +140,9 @@ void Hessian::read_kpoints()
   fclose(fid);
 }
 
-void Hessian::initialize(size_t N)
+void Hessian::initialize(Atom& atoms, size_t N)
 {
-  read_basis(N);
+  create_basis(atoms, N);
   read_kpoints();
   size_t num_H = num_basis * N * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
