@@ -36,6 +36,7 @@ public:
   void compute(
     Force& force,
     Box& box,
+    std::vector<std::string> cpu_atom_symbol,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
@@ -58,9 +59,9 @@ protected:
   std::vector<double> DR;
   std::vector<double> DI;
 
-  void read_basis(size_t N);
-  void read_kpoints();
-  void initialize(size_t);
+  void create_basis(const std::vector<std::string> cpu_atom_symbol, size_t N);
+  void create_kpoints(const Box& box);
+  void initialize(const std::vector<std::string> cpu_atom_symbol, const Box& box, size_t);
   void finalize(void);
 
   void find_H(
