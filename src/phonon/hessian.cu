@@ -35,39 +35,39 @@ Then calculate the dynamical matrices with different k points.
 #include <string>
 
 namespace {
-const std::map<std::string, double> table = {
-  {"H", 1.0080000000}, {"He", 4.0026020000}, {"Li", 6.9400000000}, {"Be", 9.0121831000},
-  {"B", 10.8100000000}, {"C", 12.0110000000}, {"N", 14.0070000000}, {"O", 15.9990000000},
-  {"F", 18.9984031630}, {"Ne", 20.1797000000}, {"Na", 22.9897692800}, {"Mg", 24.3050000000},
-  {"Al", 26.9815385000}, {"Si", 28.0850000000}, {"P", 30.9737619980}, {"S", 32.0600000000},
-  {"Cl", 35.4500000000}, {"Ar", 39.9480000000}, {"K", 39.0983000000}, {"Ca", 40.0780000000},
-  {"Sc", 44.9559080000}, {"Ti", 47.8670000000}, {"V", 50.9415000000}, {"Cr", 51.9961000000},
-  {"Mn", 54.9380440000}, {"Fe", 55.8450000000}, {"Co", 58.9331940000}, {"Ni", 58.6934000000},
-  {"Cu", 63.5460000000}, {"Zn", 65.3800000000}, {"Ga", 69.7230000000}, {"Ge", 72.6300000000},
-  {"As", 74.9215950000}, {"Se", 78.9710000000}, {"Br", 79.9040000000}, {"Kr", 83.7980000000},
-  {"Rb", 85.4678000000}, {"Sr", 87.6200000000}, {"Y", 88.9058400000}, {"Zr", 91.2240000000},
-  {"Nb", 92.9063700000}, {"Mo", 95.9500000000}, {"Tc", 98}, {"Ru", 101.0700000000},
-  {"Rh", 102.9055000000}, {"Pd", 106.4200000000}, {"Ag", 107.8682000000}, {"Cd", 112.4140000000},
-  {"In", 114.8180000000}, {"Sn", 118.7100000000}, {"Sb", 121.7600000000}, {"Te", 127.6000000000},
-  {"I", 126.9044700000}, {"Xe", 131.2930000000}, {"Cs", 132.9054519600}, {"Ba", 137.3270000000},
-  {"La", 138.9054700000}, {"Ce", 140.1160000000}, {"Pr", 140.9076600000}, {"Nd", 144.2420000000},
-  {"Pm", 145}, {"Sm", 150.3600000000}, {"Eu", 151.9640000000}, {"Gd", 157.2500000000},
-  {"Tb", 158.9253500000}, {"Dy", 162.5000000000}, {"Ho", 164.9303300000}, {"Er", 167.2590000000},
-  {"Tm", 168.9342200000}, {"Yb", 173.0450000000}, {"Lu", 174.9668000000}, {"Hf", 178.4900000000},
-  {"Ta", 180.9478800000}, {"W", 183.8400000000}, {"Re", 186.2070000000}, {"Os", 190.2300000000},
-  {"Ir", 192.2170000000}, {"Pt", 195.0840000000}, {"Au", 196.9665690000}, {"Hg", 200.5920000000},
-  {"Tl", 204.3800000000}, {"Pb", 207.2000000000}, {"Bi", 208.9804000000}, {"Po", 210}, {"At", 210},
-  {"Rn", 222}, {"Fr", 223}, {"Ra", 226}, {"Ac", 227}, {"Th", 232.0377000000}, {"Pa", 231.0358800000},
-  {"U", 238.0289100000}, {"Np", 237}, {"Pu", 244}, {"Am", 243}, {"Cm", 247}, {"Bk", 247}, {"Cf", 251},
-  {"Es", 252}, {"Fm", 257}, {"Md", 258}, {"No", 259}, {"Lr", 262}
-};
-double mass_of(const std::string& sym) {
-  auto it = table.find(sym);
-  if (it == table.end()) {
-      PRINT_INPUT_ERROR("Error: no such element '" << sym << "'\n");
-  }
-  return it->second;
-} 
+  const std::map<std::string, double> table = {
+    {"H", 1.0080000000}, {"He", 4.0026020000}, {"Li", 6.9400000000}, {"Be", 9.0121831000},
+    {"B", 10.8100000000}, {"C", 12.0110000000}, {"N", 14.0070000000}, {"O", 15.9990000000},
+    {"F", 18.9984031630}, {"Ne", 20.1797000000}, {"Na", 22.9897692800}, {"Mg", 24.3050000000},
+    {"Al", 26.9815385000}, {"Si", 28.0850000000}, {"P", 30.9737619980}, {"S", 32.0600000000},
+    {"Cl", 35.4500000000}, {"Ar", 39.9480000000}, {"K", 39.0983000000}, {"Ca", 40.0780000000},
+    {"Sc", 44.9559080000}, {"Ti", 47.8670000000}, {"V", 50.9415000000}, {"Cr", 51.9961000000},
+    {"Mn", 54.9380440000}, {"Fe", 55.8450000000}, {"Co", 58.9331940000}, {"Ni", 58.6934000000},
+    {"Cu", 63.5460000000}, {"Zn", 65.3800000000}, {"Ga", 69.7230000000}, {"Ge", 72.6300000000},
+    {"As", 74.9215950000}, {"Se", 78.9710000000}, {"Br", 79.9040000000}, {"Kr", 83.7980000000},
+    {"Rb", 85.4678000000}, {"Sr", 87.6200000000}, {"Y", 88.9058400000}, {"Zr", 91.2240000000},
+    {"Nb", 92.9063700000}, {"Mo", 95.9500000000}, {"Tc", 98}, {"Ru", 101.0700000000},
+    {"Rh", 102.9055000000}, {"Pd", 106.4200000000}, {"Ag", 107.8682000000}, {"Cd", 112.4140000000},
+    {"In", 114.8180000000}, {"Sn", 118.7100000000}, {"Sb", 121.7600000000}, {"Te", 127.6000000000},
+    {"I", 126.9044700000}, {"Xe", 131.2930000000}, {"Cs", 132.9054519600}, {"Ba", 137.3270000000},
+    {"La", 138.9054700000}, {"Ce", 140.1160000000}, {"Pr", 140.9076600000}, {"Nd", 144.2420000000},
+    {"Pm", 145}, {"Sm", 150.3600000000}, {"Eu", 151.9640000000}, {"Gd", 157.2500000000},
+    {"Tb", 158.9253500000}, {"Dy", 162.5000000000}, {"Ho", 164.9303300000}, {"Er", 167.2590000000},
+    {"Tm", 168.9342200000}, {"Yb", 173.0450000000}, {"Lu", 174.9668000000}, {"Hf", 178.4900000000},
+    {"Ta", 180.9478800000}, {"W", 183.8400000000}, {"Re", 186.2070000000}, {"Os", 190.2300000000},
+    {"Ir", 192.2170000000}, {"Pt", 195.0840000000}, {"Au", 196.9665690000}, {"Hg", 200.5920000000},
+    {"Tl", 204.3800000000}, {"Pb", 207.2000000000}, {"Bi", 208.9804000000}, {"Po", 210}, {"At", 210},
+    {"Rn", 222}, {"Fr", 223}, {"Ra", 226}, {"Ac", 227}, {"Th", 232.0377000000}, {"Pa", 231.0358800000},
+    {"U", 238.0289100000}, {"Np", 237}, {"Pu", 244}, {"Am", 243}, {"Cm", 247}, {"Bk", 247}, {"Cf", 251},
+    {"Es", 252}, {"Fm", 257}, {"Md", 258}, {"No", 259}, {"Lr", 262}
+  };
+  double mass_of(const std::string& sym) {
+    auto it = table.find(sym);
+    if (it == table.end()) {
+      PRINT_INPUT_ERROR("Error: no such element << sym << \n");
+    }
+    return it->second;
+  } 
 }
 
 void Hessian::compute(
@@ -107,10 +107,9 @@ void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
 {
   std::ifstream fin("run.in");
   std::string key;
-  size_t cx, cy, cz;
   if (!(fin >> key >> cx >> cy >> cz) || key != "replicate")
     PRINT_INPUT_ERROR("replicate is required in run.in\n");
-  size_t num_basis = N / (cx * cy * cz);
+  this->num_basis = N / (cx * cy * cz);
 
   basis.resize(num_basis);
   mass.resize(num_basis);
@@ -120,95 +119,76 @@ void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
   }
 
   label.resize(N);
-  size_t idx = 0;
-  for (size_t cell = 0; cell < cx * cy * cz; ++cell)
-    for (size_t atom = 0; atom < num_basis; ++atom)
-      label[idx++] = atom;
-}
-/*
-void Hessian::read_kpoints()
-{
-  FILE* fid = fopen("kpoints.in", "r");
-  size_t count;
-  count = fscanf(fid, "%zu", &num_kpoints);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
-
-  kpoints.resize(num_kpoints * 3);
-  for (size_t m = 0; m < num_kpoints; ++m) {
-    count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0], &kpoints[m * 3 + 1], &kpoints[m * 3 + 2]);
-    PRINT_SCANF_ERROR(count, 3, "Reading error for kpoints.in.");
+  for (size_t n = 0; n < N; ++n) {
+    size_t atom = n % num_basis;
+    label[n] = atom;
   }
-  fclose(fid);
 }
-*/
+
 void Hessian::create_kpoints(const Box& box)
 {
-  const int num_kpoints = 501;
-  const double PI = 3.14159265358979323846;
-
-  const std::vector<std::vector<double>> lattice = {
-    { box.cpu_h[0] / cx, box.cpu_h[1] / cx, box.cpu_h[2] / cx },
-    { box.cpu_h[3] / cy, box.cpu_h[4] / cy, box.cpu_h[5] / cy },
-    { box.cpu_h[6] / cz, box.cpu_h[7] / cz, box.cpu_h[8] / cz }
-  };
-
-  std::vector<std::array<double, 3>> frac_k;
-  std::ifstream kfile("kpoints.in"); 
-  if (!kfile)
-    PRINT_INPUT_ERROR("Cannot open kpoints.in");
-  std::string line;
-  while (std::getline(kfile, line)) {
-    std::istringstream iss(line);
-    std::array<double, 3> kpt{};
-    if (!(iss >> kpt[0] >> kpt[1] >> kpt[2]))
-      PRINT_INPUT_ERROR("The kpoints.in format is incorrect");
-    frac_k.push_back(kpt);
-  }
-  kfile.close();
-
-  auto dot = [](const auto& a, const auto& b) {
+  auto dot = [](const std::vector<double>& a, const std::vector<double>& b) -> double {
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
   };
-  auto cross = [](const auto& a, const auto& b) -> std::vector<double> {
-    return {
-      a[1]*b[2] - a[2]*b[1],
-      a[2]*b[0] - a[0]*b[2],
-      a[0]*b[1] - a[1]*b[0]
-    };
+  auto cross = [](const std::vector<double>& a, const std::vector<double>& b) -> std::vector<double> {
+    return { a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0] };
   };
-  auto transpose = [](const auto& m) -> std::vector<std::vector<double>> {
-    return {
-      {m[0][0], m[1][0], m[2][0]},
-      {m[0][1], m[1][1], m[2][1]},
-      {m[0][2], m[1][2], m[2][2]}
-    };
+  auto transpose = [](const std::vector<std::vector<double>>& m) -> std::vector<std::vector<double>> {
+      return { { m[0][0], m[1][0], m[2][0] }, { m[0][1], m[1][1], m[2][1] }, { m[0][2], m[1][2], m[2][2] } };
   };
-  auto matvec = [](const auto& m, const auto& v) -> std::vector<double> {
-    return {
-      m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
-      m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
-      m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2]
+  auto matvec = [](const std::vector<std::vector<double>>& m, const std::vector<double>& v) -> std::vector<double> {
+    return { m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2], m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2], m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2] };
     };
+  auto lerp = [](const std::vector<double>& a, const std::vector<double>& b, double t) -> std::vector<double> {
+    return { a[0] + t*(b[0] - a[0]), a[1] + t*(b[1] - a[1]), a[2] + t*(b[2] - a[2]) };
   };
+  auto reciprocal_lattice = [&dot,&cross,&transpose](const std::vector<std::vector<double>>& lat) -> std::vector<std::vector<double>> {
+    const double volume = dot(lat[0], cross(lat[1], lat[2]));
+    std::vector<std::vector<double>> rec(3, std::vector<double>(3));
+    rec[0] = cross(lat[1], lat[2]);
+    rec[1] = cross(lat[2], lat[0]);
+    rec[2] = cross(lat[0], lat[1]);
+    for (auto& v : rec)
+      for (auto& x : v) x *= 2.0 * M_PI / volume;
+    return transpose(rec);
+  };
+  
+  std::ifstream kin("kpoints.in");
+  if (!kin) PRINT_INPUT_ERROR("Cannot open kpoints.in\n");
 
-  const double volume = dot(lattice[0], cross(lattice[1], lattice[2]));
-  std::vector<std::vector<double>> rec_lat(3, std::vector<double>(3));
-  rec_lat[0] = cross(lattice[1], lattice[2]);
-  rec_lat[1] = cross(lattice[2], lattice[0]);
-  rec_lat[2] = cross(lattice[0], lattice[1]);
-  for (auto& v : rec_lat)
-    for (auto& x : v) x *= 2.0 * PI / volume;
-  rec_lat = transpose(rec_lat);
+  if (!(kin >> num_kpoints) || num_kpoints <= 0)
+    PRINT_INPUT_ERROR("Bad number of kpoints in kpoints.in\n");
+
+  std::vector<std::vector<double>> frac_k;
+  frac_k.reserve(50);
+  std::string line;
+  std::getline(kin, line);
+  while (std::getline(kin, line))
+  {
+      std::istringstream iss(line);
+      double x, y, z;
+      if (!(iss >> x >> y >> z)) break;
+      frac_k.emplace_back(std::vector<double>{x, y, z});
+  }
+  if (frac_k.size() < 2)
+    PRINT_INPUT_ERROR("Need at least two high-symmetry points in kpoints.in\n");
+
+  const std::vector<std::vector<double>> lattice = {
+    { box.cpu_h[0] / cx, box.cpu_h[3] / cx, box.cpu_h[6] / cx },
+    { box.cpu_h[1] / cy, box.cpu_h[4] / cy, box.cpu_h[7] / cy },
+    { box.cpu_h[2] / cz, box.cpu_h[5] / cz, box.cpu_h[8] / cz }
+  };
+  const auto rec_lat = reciprocal_lattice(lattice);
 
   std::vector<double> lens;
   double total_len = 0.0;
   for (size_t i = 1; i < frac_k.size(); ++i) {
     auto start = matvec(rec_lat, frac_k[i-1]);
     auto end   = matvec(rec_lat, frac_k[i]);
-    double dx = end[0]-start[0];
-    double dy = end[1]-start[1];
-    double dz = end[2]-start[2];
-    double len = std::sqrt(dx*dx+dy*dy+dz*dz);
+    double dx = end[0] - start[0];
+    double dy = end[1] - start[1];
+    double dz = end[2] - start[2];
+    double len = std::sqrt(dx*dx + dy*dy + dz*dz);
     lens.push_back(len);
     total_len += len;
   }
@@ -216,22 +196,25 @@ void Hessian::create_kpoints(const Box& box)
   std::vector<int> counts;
   int used = 0;
   for (size_t i = 0; i < lens.size(); ++i) {
-    int n = static_cast<int>(std::round(num_kpoints * lens[i]/total_len));
-    if (i == lens.size()-1) n = num_kpoints - used;
+    int n = static_cast<int>(std::round(num_kpoints * lens[i] / total_len));
+    if (i == lens.size() - 1) n = num_kpoints - used;
     counts.push_back(n);
     used += n;
   }
 
-  std::vector<double> kpoints;
-  for (size_t i = 0; i < counts.size(); ++i) {
+  kpoints.resize(num_kpoints * 3);
+  int k_index = 0;
+  for (size_t i = 0; i < counts.size() && k_index < num_kpoints; ++i) {
     auto start = matvec(rec_lat, frac_k[i]);
     auto end   = matvec(rec_lat, frac_k[i+1]);
     int n = counts[i];
     for (int j = 0; j < n; ++j) {
-      double t = static_cast<double>(j)/(n-1);
-      kpoints.push_back(start[0] + t*(end[0]-start[0]));
-      kpoints.push_back(start[1] + t*(end[1]-start[1]));
-      kpoints.push_back(start[2] + t*(end[2]-start[2]));
+      double t = static_cast<double>(j) / (n - 1);
+      auto kpt = lerp(start, end, t);
+      kpoints[k_index * 3]     = kpt[0];
+      kpoints[k_index * 3 + 1] = kpt[1];
+      kpoints[k_index * 3 + 2] = kpt[2];
+      k_index++;
     }
   }
 }
