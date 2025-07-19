@@ -157,8 +157,8 @@ void Hessian::create_kpoints(const Box& box)
   if (!kin) PRINT_INPUT_ERROR("Cannot open kpoints.in\n");
   if (!(kin >> num_kpoints) || num_kpoints <= 0)
     PRINT_INPUT_ERROR("Bad number of kpoints in kpoints.in\n");
-  std::vector<std::vector<double>> frac_k;
-  frac_k.reserve(50);
+  std::vector<std::vector<double>> hsp;
+  hsp.reserve(50);
   std::string line;
   std::getline(kin, line);
   while (std::getline(kin, line))
@@ -166,9 +166,9 @@ void Hessian::create_kpoints(const Box& box)
       std::istringstream iss(line);
       double x, y, z;
       if (!(iss >> x >> y >> z)) break;
-      frac_k.emplace_back(std::vector<double>{x, y, z});
+      hsp.emplace_back(std::vector<double>{x, y, z});
   }
-  if (frac_k.size() < 2)
+  if (hsp.size() < 2)
     PRINT_INPUT_ERROR("Need at least two high-symmetry points in kpoints.in\n");
 
   const std::vector<std::vector<double>> lattice = {
@@ -180,9 +180,9 @@ void Hessian::create_kpoints(const Box& box)
 
   std::vector<double> lens;
   double total_len = 0.0;
-  for (size_t i = 1; i < frac_k.size(); ++i) {
-    auto start = matvec(rec_lat, frac_k[i-1]);
-    auto end   = matvec(rec_lat, frac_k[i]);
+  for (size_t i = 1; i < hsp.size(); ++i) {
+    auto start = matvec(rec_lat, hsp[i-1]);
+    auto end   = matvec(rec_lat, hsp[i]);
     double dx = end[0] - start[0];
     double dy = end[1] - start[1];
     double dz = end[2] - start[2];
@@ -195,31 +195,47 @@ void Hessian::create_kpoints(const Box& box)
   int used = 0;
   for (size_t i = 0; i < lens.size(); ++i) {
     int n = static_cast<int>(std::round(num_kpoints * lens[i] / total_len));
-    if (i == lens.size() - 1) n = num_kpoints - used;
+    if (n < 1) n = 1;
     counts.push_back(n);
     used += n;
+  }
+  int unique_total = used - (counts.size() - 1);
+  int extra = num_kpoints - unique_total;
+  for (size_t i = 0; extra > 0 && i < counts.size(); ++i) {
+    counts[i]++;
+    extra--;
   }
 
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
   int k_idx = 0;
   double kpath_len = 0.0;
-  for (size_t kc = 0; kc < counts.size(); ++kc) {
-      const auto start = matvec(rec_lat, frac_k[kc]);
-      const auto end   = matvec(rec_lat, frac_k[kc + 1]);
-      const int  n     = counts[kc];
-      const double kc_len = lens[kc];
 
-      for (int j = 0; j < n; ++j) {
-          const double t = (n == 1) ? 0.0 : static_cast<double>(j) / (n - 1);
-          auto kpt = lerp(start, end, t);
-          kpoints[k_idx * 3 + 0] = kpt[0];
-          kpoints[k_idx * 3 + 1] = kpt[1];
-          kpoints[k_idx * 3 + 2] = kpt[2];
-          kpath[k_idx] = kpath_len + t * lc_len;
-          ++k_idx;
-      }
-      kpath_len += kc_len;
+  for (size_t kc = 0; kc < counts.size(); ++kc) {
+    const auto start = matvec(rec_lat, hsp[kc]);
+    const auto end   = matvec(rec_lat, hsp[kc + 1]);
+    const int  n     = counts[kc];
+    const double kc_len = lens[kc];
+
+    int np = (kc == counts.size() - 1) ? n : n - 1;
+    for (int j = 0; j < np; ++j) {
+      const double t = (n == 1) ? 0.0 : static_cast<double>(j) / (n - 1);
+      auto kpt = lerp(start, end, t);
+      kpoints[k_idx * 3 + 0] = kpt[0];
+      kpoints[k_idx * 3 + 1] = kpt[1];
+      kpoints[k_idx * 3 + 2] = kpt[2];
+      kpath[k_idx] = kpath_len + t * kc_len;
+      ++k_idx;
+    }
+    kpath_len += kc_len;
+  }
+
+  kpath_sym.reserve(hsp.size());
+  double sym_pos = 0.0;
+  kpath_sym.push_back(sym_pos);
+  for (size_t kp = 0; kp < lens.size(); ++kp) {
+    sym_pos += lens[kp];
+    kpath_sym.push_back(sym_pos);
   }
 }
 
@@ -368,6 +384,11 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
   const int number_of_atoms = cpu_position_per_atom.size() / 3;
 
   FILE* fid_omega2 = fopen("omega2.out", "w");
+  fprintf(fid_omega2, "# ");
+  for (size_t i = 0; i < kpath_sym.size(); ++i) {
+    fprintf(fid_omega2, " %.6f", kpath_sym[i]);
+    }
+  fprintf(fid_omega2, "\n");
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * num_basis * num_basis * 9;
     for (size_t nb = 0; nb < num_basis; ++nb) {
