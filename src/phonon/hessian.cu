@@ -155,10 +155,8 @@ void Hessian::create_kpoints(const Box& box)
   
   std::ifstream kin("kpoints.in");
   if (!kin) PRINT_INPUT_ERROR("Cannot open kpoints.in\n");
-
   if (!(kin >> num_kpoints) || num_kpoints <= 0)
     PRINT_INPUT_ERROR("Bad number of kpoints in kpoints.in\n");
-
   std::vector<std::vector<double>> frac_k;
   frac_k.reserve(50);
   std::string line;
@@ -203,19 +201,25 @@ void Hessian::create_kpoints(const Box& box)
   }
 
   kpoints.resize(num_kpoints * 3);
-  int k_index = 0;
-  for (size_t i = 0; i < counts.size() && k_index < num_kpoints; ++i) {
-    auto start = matvec(rec_lat, frac_k[i]);
-    auto end   = matvec(rec_lat, frac_k[i+1]);
-    int n = counts[i];
-    for (int j = 0; j < n; ++j) {
-      double t = static_cast<double>(j) / (n - 1);
-      auto kpt = lerp(start, end, t);
-      kpoints[k_index * 3]     = kpt[0];
-      kpoints[k_index * 3 + 1] = kpt[1];
-      kpoints[k_index * 3 + 2] = kpt[2];
-      k_index++;
-    }
+  kpath.resize(num_kpoints);
+  int k_idx = 0;
+  double kpath_len = 0.0;
+  for (size_t kc = 0; kc < counts.size(); ++kc) {
+      const auto start = matvec(rec_lat, frac_k[kc]);
+      const auto end   = matvec(rec_lat, frac_k[kc + 1]);
+      const int  n     = counts[kc];
+      const double kc_len = lens[kc];
+
+      for (int j = 0; j < n; ++j) {
+          const double t = (n == 1) ? 0.0 : static_cast<double>(j) / (n - 1);
+          auto kpt = lerp(start, end, t);
+          kpoints[k_idx * 3 + 0] = kpt[0];
+          kpoints[k_idx * 3 + 1] = kpt[1];
+          kpoints[k_idx * 3 + 2] = kpt[2];
+          kpath[k_idx] = kpath_len + t * lc_len;
+          ++k_idx;
+      }
+      kpath_len += kc_len;
   }
 }
 
@@ -330,12 +334,13 @@ void Hessian::output_D()
   fclose(fid);
 }
 
-void Hessian::find_omega(FILE* fid, size_t offset)
+void Hessian::find_omega(FILE* fid, size_t offset, size_t nk)
 {
   size_t dim = num_basis * 3;
   std::vector<double> W(dim);
   eig_hermitian_QR(dim, DR.data() + offset, DI.data() + offset, W.data());
   double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION * TIME_UNIT_CONVERSION);
+  fprintf(fid, "%.6f ", kpath[nk]);
   for (size_t n = 0; n < dim; ++n) {
     fprintf(fid, "%g ", W[n] * natural_to_THz);
   }
@@ -350,6 +355,7 @@ void Hessian::find_omega_batch(FILE* fid)
   double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION * TIME_UNIT_CONVERSION);
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * dim;
+    fprintf(fid, "%.6f ", kpath[nk]);
     for (size_t n = 0; n < dim; ++n) {
       fprintf(fid, "%g ", W[offset + n] * natural_to_THz);
     }
@@ -392,7 +398,7 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
       }
     }
     if (num_basis > 10) {
-      find_omega(fid_omega2, offset);
+      find_omega(fid_omega2, offset, nk);
     } // > 32x32
   }
   output_D();
