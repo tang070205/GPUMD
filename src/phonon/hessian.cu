@@ -107,8 +107,8 @@ void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
 {
   std::ifstream fin("run.in");
   std::string key;
-  if (!(fin >> key >> cx >> cy >> cz) || key != "replicate")
-    PRINT_INPUT_ERROR("replicate is required in run.in\n");
+  if (fin >> key && key == "replicate")
+    fin >> cx >> cy >> cz;
   this->num_basis = N / (cx * cy * cz);
 
   basis.resize(num_basis);
@@ -160,18 +160,28 @@ void Hessian::create_kpoints(const Box& box)
       for (auto& x : v) x *= 2.0 * M_PI / volume;
     return transpose(rec);
   };
-  
+
   std::ifstream kin("kpoints.in");
   if (!kin) PRINT_INPUT_ERROR("Cannot open kpoints.in\n");
+  std::vector<std::vector<std::vector<double>>> hsps;
   std::vector<std::vector<double>> hsp;
   std::string line;
   while (std::getline(kin, line)) {
-      std::istringstream iss(line);
-      double x, y, z;
-      if (!(iss >> x >> y >> z)) break;
-      hsp.emplace_back(std::vector<double>{x, y, z});
+    const auto beg = line.find_first_not_of(" \t\r\n");
+    if (beg == std::string::npos) {
+        if (!hsp.empty()) { hsps.push_back(hsp); hsp.clear(); }
+        continue;
+    }
+    if (line[beg] == '#') continue;
+    std::istringstream iss(line);
+    double x, y, z;
+    if (!(iss >> x >> y >> z)) break;
+    hsp.emplace_back(std::vector<double>{x, y, z});
   }
-  num_kpoints = hsp.size();
+  if (!hsp.empty()) hsps.push_back(hsp);
+  num_kpoints = 1 - hsps.size();
+  for (const auto& seg : hsps) num_kpoints += seg.size();
+  kpath_sym.resize(num_kpoints);
 
   const std::vector<std::vector<double>> lattice = {
     { box.cpu_h[0] / cx, box.cpu_h[3] / cx, box.cpu_h[6] / cx },
@@ -181,67 +191,74 @@ void Hessian::create_kpoints(const Box& box)
   const auto rec_lat = reciprocal_lattice(lattice);
 
   std::vector<double> num_interps;
-  num_interps.resize(hsp.size() - 1);
-  for (size_t i = 1; i < hsp.size(); ++i) {
-    auto prev = matvec(rec_lat, hsp[i-1]);
-    auto curr = matvec(rec_lat, hsp[i]);
-    double dx = curr[0] - prev[0];
-    double dy = curr[1] - prev[1];
-    double dz = curr[2] - prev[2];
-    double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-    num_interps[i - 1] = static_cast<int>(dist * 100.0);
+  num_interps.reserve(num_kpoints - 1);
+  for (const auto& seg : hsps) {
+    for (size_t i = 1; i < seg.size(); ++i) {
+      auto start = matvec(rec_lat, seg[i-1]);
+      auto end = matvec(rec_lat, seg[i]);
+      double dx = end[0] - start[0];
+      double dy = end[1] - start[1];
+      double dz = end[2] - start[2];
+      double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+      num_interps.push_back(static_cast<int>(dist * 100.0));
+    }
   }
   for (int n : num_interps) num_kpoints += n;
 
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
-  int k_idx = 0;
+  std::vector<double> sym_idx;
+  size_t k_idx = 0;
+  size_t interp_idx = 0;
   double kpath_len = 0.0;
-  auto cart = matvec(rec_lat, hsp[0]);
-  kpoints[0] = cart[0];
-  kpoints[1] = cart[1];
-  kpoints[2] = cart[2];
-  kpath[0] = kpath_len;
-  k_idx = 1;
 
-  for (size_t i = 1; i < hsp.size(); ++i) {
-    const auto& start = matvec(rec_lat, hsp[i - 1]);
-    const auto& end   = matvec(rec_lat, hsp[i]);
-    int n = num_interps[i - 1] + 2;
+  auto k_first = matvec(rec_lat, hsps[0][0]);
+  kpoints[k_idx * 3 + 0] = k_first[0];
+  kpoints[k_idx * 3 + 1] = k_first[1];
+  kpoints[k_idx * 3 + 2] = k_first[2];
+  kpath[k_idx] = kpath_len;
+  sym_idx.push_back(k_idx);
+  ++k_idx;
 
-    for (int j = 1; j < n - 1; ++j) {
-      double t = static_cast<double>(j) / n;
-      auto kpt = lerp(start, end, t);
-      kpoints[k_idx * 3 + 0] = kpt[0];
-      kpoints[k_idx * 3 + 1] = kpt[1];
-      kpoints[k_idx * 3 + 2] = kpt[2];
+  for (const auto& hsp : hsps) {
+    for (size_t i = 1; i < hsp.size(); ++i) {
+      const auto& start = matvec(rec_lat, hsp[i - 1]);
+      const auto& end   = matvec(rec_lat, hsp[i]);
+      int n = num_interps[interp_idx++] + 2;
 
-      double dx = kpt[0] - kpoints[k_idx * 3 - 3];
-      double dy = kpt[1] - kpoints[k_idx * 3 - 2];
-      double dz = kpt[2] - kpoints[k_idx * 3 - 1];
+      for (int j = 1; j < n - 1; ++j) {
+        double t = static_cast<double>(j) / n;
+        auto kpt = lerp(start, end, t);
+
+        kpoints[k_idx * 3 + 0] = kpt[0];
+        kpoints[k_idx * 3 + 1] = kpt[1];
+        kpoints[k_idx * 3 + 2] = kpt[2];
+
+        double dx = kpt[0] - kpoints[k_idx * 3 - 3];
+        double dy = kpt[1] - kpoints[k_idx * 3 - 2];
+        double dz = kpt[2] - kpoints[k_idx * 3 - 1];
+        kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
+        kpath[k_idx] = kpath_len;
+        ++k_idx;
+      }
+
+        // Add the end point
+      kpoints[k_idx * 3 + 0] = end[0];
+      kpoints[k_idx * 3 + 1] = end[1];
+      kpoints[k_idx * 3 + 2] = end[2];
+
+      double dx = end[0] - kpoints[k_idx * 3 - 3];
+      double dy = end[1] - kpoints[k_idx * 3 - 2];
+      double dz = end[2] - kpoints[k_idx * 3 - 1];
       kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
       kpath[k_idx] = kpath_len;
+      sym_idx.push_back(k_idx);
       ++k_idx;
     }
-    // Add the end point
-    kpoints[k_idx * 3 + 0] = end[0];
-    kpoints[k_idx * 3 + 1] = end[1];
-    kpoints[k_idx * 3 + 2] = end[2];
-
-    double dx = end[0] - kpoints[k_idx * 3 - 3];
-    double dy = end[1] - kpoints[k_idx * 3 - 2];
-    double dz = end[2] - kpoints[k_idx * 3 - 1];
-    kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
-    kpath[k_idx] = kpath_len;
-    ++k_idx;
   }
-  
-  kpath_sym.resize(hsp.size());
-  kpath_sym[0] = kpath[0];
-  size_t ks_idx = 0;
-  for (size_t kp = 1; kp < hsp.size(); ++kp) {
-    ks_idx += num_interps[kp - 1] + 1;
-    kpath_sym[kp] = kpath[ks_idx];
+
+  for (size_t kp = 0; kp < kpath_sym.size(); ++kp) {
+    kpath_sym[kp] = kpath[sym_idx[kp]];
   }
 }
 
