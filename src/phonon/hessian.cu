@@ -98,7 +98,9 @@ void Hessian::create_basis(std::vector<std::string> cpu_atom_symbol, size_t N)
 {
   std::ifstream fin("run.in");
   std::string key;
-  if (fin >> key && key == "replicate")
+  if (!(fin >> key && key == "replicate")){
+    PRINT_INPUT_ERROR("Error: no replicate keyword.");
+  }
     fin >> cx >> cy >> cz;
   this->num_basis = N / (cx * cy * cz);
 
