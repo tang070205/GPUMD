@@ -23,6 +23,7 @@ class Measure;
 #include "add_force.cuh"
 #include "add_spring.cuh"
 #include "add_random_force.cuh"
+#include "deposition.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -76,4 +77,5 @@ private:
   Add_Spring add_spring;
   Add_Random_Force add_random_force;
   Add_Efield add_efield;
+  Deposition deposition;
 };

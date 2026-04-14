@@ -304,6 +304,8 @@ void Run::perform_a_run()
 
     mc.compute(step, number_of_steps, atom, box, group);
 
+    deposition.compute(step, atom, box);
+
     measure.process(
       number_of_steps,
       step,
@@ -341,6 +343,7 @@ void Run::perform_a_run()
   add_spring.finalize();
   add_random_force.finalize();
   add_efield.finalize();
+  deposition.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -589,6 +592,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
+  } else if (strcmp(param[0], "deposition") == 0) {
+    deposition.parse(param, num_param);
   } else if (strcmp(param[0], "kspace") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "dftd3") == 0) {
