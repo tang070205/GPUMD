@@ -207,6 +207,8 @@ public:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& NN_local,
     GPU_Vector<int>& NL_local);
+  // Resize neighbor lists to accommodate more atoms (used by deposition)
+  void resize(const int num_atoms, const int num_neighbors);
 
 private:
   double skin = 1.0;              // skin distance

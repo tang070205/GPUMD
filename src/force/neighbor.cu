@@ -760,6 +760,19 @@ void Neighbor::find_neighbor_global(
   const GPU_Vector<double>& position_per_atom)
 {
   const int N = type.size();
+  
+  // Check if we need to resize (atom count increased, e.g., by deposition)
+  if (N > (int)NN.size()) {
+    // Estimate required MN based on rc - use a safe default
+    int MN = 200; // safe default for most systems
+    resize(N, MN);
+    // Also resize x0, y0, z0 for position check
+    x0.resize(N);
+    y0.resize(N);
+    z0.resize(N);
+    printf("    Neighbor list auto-resized for deposition: N = %d\n", N);
+  }
+  
   const double* x = position_per_atom.data();
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
@@ -830,4 +843,22 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
+}
+
+void Neighbor::resize(const int num_atoms, const int num_neighbors)
+{
+  // Only resize if we need more space
+  if (num_atoms > (int)NN.size() || num_neighbors * num_atoms > (int)NL.size()) {
+    const double rc = 3.0; // Use a reasonable default rc for MN calculation
+    const double rc_plus_skin = rc + skin;
+    const int MN = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
+    
+    NN.resize(num_atoms);
+    NL.resize(num_atoms * MN);
+    cell_count.resize(num_atoms);
+    cell_count_sum.resize(num_atoms);
+    cell_contents.resize(num_atoms);
+    
+    printf("    Neighbor list resized for %d atoms (MN=%d)\n", num_atoms, MN);
+  }
 }
