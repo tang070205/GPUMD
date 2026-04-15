@@ -494,6 +494,11 @@ void Force::compute(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
+  for (int i = 0; i < potentials.size(); ++i) {
+    potentials[i]->N1 = 0;
+    potentials[i]->N2 = number_of_atoms;
+  }
+
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
     if (3 == potentials[0]->nep_model_type) {
@@ -784,6 +789,12 @@ void Force::compute(
   GPU_CHECK_KERNEL
 
   temperature += delta_T;
+
+  for (int i = 0; i < potentials.size(); ++i) {
+    potentials[i]->N1 = 0;
+    potentials[i]->N2 = number_of_atoms;
+  }
+
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
     if (3 == potentials[0]->nep_model_type) {
