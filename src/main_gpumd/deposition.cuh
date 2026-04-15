@@ -34,34 +34,22 @@ class Deposition
 {
 public:
   void parse(const char** param, int num_param);
-  
   void compute(int step, Atom& atom, Box& box);
-  
   void finalize(void);
-
   bool is_active() const { return is_deposition; }
 
 private:
   bool is_deposition = false;
   
-  // Configuration parameters
-  int deposit_interval = 1000;         // steps between deposition events
-  double z_position_fraction = 0.75;   // z position as fraction of box (default 3/4)
-  double vz_deposit = 0.001;          // z-velocity (negative for deposition)
-  double vx_deposit = 0.0;             // x-velocity
-  double vy_deposit = 0.0;             // y-velocity
-  
-  // Atoms to deposit per event
-  int type_deposit = 0;                // type index to deposit
-  int num_deposit = 0;                 // number of atoms per deposit
-  double deposit_mass = 0.0;           // mass of the deposited atom
-  
-  // Statistics
-  int num_deposited_total = 0;         // total number deposited so far
-  int num_deposition_events = 0;       // number of deposition events performed
+  int deposit_interval = 1000;           // steps between deposition events
+  int num_deposit = 0;                   // number of atoms per deposit
+  int type_deposit = 0;                  // type index to deposit
+  int num_deposited_total = 0;           // total number deposited atoms
+  int num_deposition_events = 0;         // number of deposition events
+  double deposit_mass = 0.0;             // mass of the deposited atom
+  double vz_deposit = 0.0;               // z-velocity (negative for deposition)
+  double z_position_fraction = 0.75;     // z position as fraction of box (default 3/4)
+  std::vector<std::string> atom_symbols; // symbols of the atoms for poential
 
-  std::vector<std::string> atom_symbols;
-  
-  // Helper functions
   void perform_deposition(Atom& atom, Box& box);
 };
