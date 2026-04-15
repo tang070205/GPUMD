@@ -84,7 +84,6 @@ static void add_atoms_to_system(
   std::vector<double> new_force(new_N * 3, 0.0);
   std::vector<double> new_virial(new_N * 9);
   std::vector<double> new_potential(new_N);
-
   std::vector<double> old_force(old_N * 3);
   std::vector<double> old_virial(old_N * 9);
   atom.force_per_atom.copy_to_host(old_force.data());
@@ -123,7 +122,7 @@ static void add_atoms_to_system(
   atom.cpu_charge = std::move(new_cpu_charge);
   atom.cpu_position_per_atom = std::move(new_cpu_pos);
   atom.cpu_velocity_per_atom = std::move(new_cpu_vel);
-  
+
   atom.type.resize(new_N);
   atom.mass.resize(new_N);
   atom.charge.resize(new_N);
@@ -147,8 +146,8 @@ void Deposition::parse(const char** param, int num_param)
 {
   printf("Deposition: Initialize atom deposition (single type).\n");
   
-  if (num_param != 4) {
-    PRINT_INPUT_ERROR("deposition should have exactly 3 parameters: interval type number.\n");
+  if (num_param != 5) {
+    PRINT_INPUT_ERROR("deposition should have 4 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &deposit_interval)) {
@@ -188,6 +187,13 @@ void Deposition::parse(const char** param, int num_param)
   printf("    Z-position: %g * Lz \n", z_position_fraction);
   printf("    Z-velocity: %g A/fs \n", vz_deposit);
 
+  if (!is_valid_real(param[4], &vz_deposit)) {
+    PRINT_INPUT_ERROR("velocity should be a number.\n");
+  }
+  if (vz_deposit <= 0) {
+    PRINT_INPUT_ERROR("velocity should > 0.\n");
+  }
+
   is_deposition = true;
 }
 
@@ -215,19 +221,19 @@ void Deposition::perform_deposition(Atom& atom, Box& box)
   std::uniform_real_distribution<double> dist_y(0.0, ly);
 
   for (int n = 0; n < num_deposit; ++n) {
-    deposit_symbols.push_back(atom_symbols[type_deposit]);
-    deposit_types.push_back(type_deposit);
-    deposit_masses.push_back(deposit_mass);
+    deposit_symbols[n] = atom_symbols[type_deposit];
+    deposit_types[n] = type_deposit;
+    deposit_masses[n] = deposit_mass;
     
-    deposit_positions.push_back(dist_x(gen));
-    deposit_positions.push_back(dist_y(gen));
-    deposit_positions.push_back(z_pos);
+    deposit_positions[n * 3 + 0] = dist_x(gen);
+    deposit_positions[n * 3 + 1] = dist_y(gen);
+    deposit_positions[n * 3 + 2] = z_pos;
     
-    deposit_velocities.push_back(0.0);
-    deposit_velocities.push_back(0.0);
-    deposit_velocities.push_back(-vz_deposit);
+    deposit_velocities[n * 3 + 0] = 0.0;
+    deposit_velocities[n * 3 + 1] = 0.0;
+    deposit_velocities[n * 3 + 2] = -vz_deposit;
   }
-
+  
   int old_N = atom.number_of_atoms;
   add_atoms_to_system(atom, num_deposit, deposit_symbols, deposit_types, deposit_masses, deposit_positions, deposit_velocities);
   int new_N = atom.number_of_atoms;
