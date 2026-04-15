@@ -75,12 +75,12 @@ static void add_atoms_to_system(
   const int new_N = old_N + num_deposit;
   atom.number_of_atoms = new_N;
 
-  std::vector<int> new_type(new_N);
-  std::vector<std::string> new_symbol(new_N);
-  std::vector<double> new_mass(new_N);
-  std::vector<float> new_charge(new_N, 0.0f);
-  std::vector<double> new_pos(new_N * 3);
-  std::vector<double> new_vel(new_N * 3);
+  std::vector<int> new_cpu_type(new_N);
+  std::vector<std::string> new_cpu_atom_symbol(new_N);
+  std::vector<double> new_cpu_mass(new_N);
+  std::vector<float> new_cpu_charge(new_N, 0.0f);
+  std::vector<double> new_cpu_pos(new_N * 3);
+  std::vector<double> new_cpu_vel(new_N * 3);
   std::vector<double> new_force(new_N * 3, 0.0);
   std::vector<double> new_virial(new_N * 9);
   std::vector<double> new_potential(new_N);
@@ -92,13 +92,13 @@ static void add_atoms_to_system(
   atom.potential_per_atom.copy_to_host(new_potential.data());
 
   for (int i = 0; i < old_N; ++i) {
-    new_type[i] = atom.cpu_type[i];
-    new_symbol[i] = atom.cpu_atom_symbol[i];
-    new_mass[i] = atom.cpu_mass[i];
-    new_charge[i] = atom.cpu_charge[i];
+    new_cpu_type[i] = atom.cpu_type[i];
+    new_cpu_atom_symbol[i] = atom.cpu_atom_symbol[i];
+    new_cpu_mass[i] = atom.cpu_mass[i];
+    new_cpu_charge[i] = atom.cpu_charge[i];
     for (int d = 0; d < 3; ++d) {
-      new_pos[i + d * new_N] = atom.cpu_position_per_atom[i + d * old_N];
-      new_vel[i + d * new_N] = atom.cpu_velocity_per_atom[i + d * old_N];
+      new_cpu_pos[i + d * new_N] = atom.cpu_position_per_atom[i + d * old_N];
+      new_cpu_vel[i + d * new_N] = atom.cpu_velocity_per_atom[i + d * old_N];
       new_force[i + d * new_N] = old_force[i + d * old_N];
     }
     for (int k = 0; k < 9; ++k) {
@@ -108,22 +108,22 @@ static void add_atoms_to_system(
   
   for (int i = 0; i < num_deposit; ++i) {
     int idx = old_N + i;
-    new_type[idx] = types_to_add[i];
-    new_symbol[idx] = symbols_to_add[i];
-    new_mass[idx] = masses_to_add[i];
+    new_cpu_type[idx] = types_to_add[i];
+    new_cpu_atom_symbol[idx] = symbols_to_add[i];
+    new_cpu_mass[idx] = masses_to_add[i];
     for (int d = 0; d < 3; ++d) {
-      new_pos[idx + d * new_N] = positions_to_add[i * 3 + d];
-      new_vel[idx + d * new_N] = velocities_to_add[i * 3 + d];
+      new_cpu_pos[idx + d * new_N] = positions_to_add[i * 3 + d];
+      new_cpu_vel[idx + d * new_N] = velocities_to_add[i * 3 + d];
     }
   }
   
-  atom.cpu_type = std::move(new_type);
-  atom.cpu_atom_symbol = std::move(new_symbol);
-  atom.cpu_mass = std::move(new_mass);
-  atom.cpu_charge = std::move(new_charge);
-  atom.cpu_position_per_atom = std::move(new_pos);
-  atom.cpu_velocity_per_atom = std::move(new_vel);
-
+  atom.cpu_type = std::move(new_cpu_type);
+  atom.cpu_atom_symbol = std::move(new_cpu_atom_symbol);
+  atom.cpu_mass = std::move(new_cpu_mass);
+  atom.cpu_charge = std::move(new_cpu_charge);
+  atom.cpu_position_per_atom = std::move(new_cpu_pos);
+  atom.cpu_velocity_per_atom = std::move(new_cpu_vel);
+  
   atom.type.resize(new_N);
   atom.mass.resize(new_N);
   atom.charge.resize(new_N);
@@ -197,17 +197,17 @@ void Deposition::perform_deposition(Atom& atom, Box& box)
   double lx = box.cpu_h[0];
   double ly = box.cpu_h[4];
   
-  std::vector<std::string> new_symbols;
-  std::vector<int> new_types;
-  std::vector<double> new_masses;
-  std::vector<double> new_positions;
-  std::vector<double> new_velocities;
+  std::vector<std::string> deposit_symbols;
+  std::vector<int> deposit_types;
+  std::vector<double> deposit_masses;
+  std::vector<double> deposit_positions;
+  std::vector<double> deposit_velocities;
   
-  new_symbols.resize(num_deposit);
-  new_types.resize(num_deposit);
-  new_masses.resize(num_deposit);
-  new_positions.resize(num_deposit * 3);
-  new_velocities.resize(num_deposit * 3);
+  deposit_symbols.resize(num_deposit);
+  deposit_types.resize(num_deposit);
+  deposit_masses.resize(num_deposit);
+  deposit_positions.resize(num_deposit * 3);
+  deposit_velocities.resize(num_deposit * 3);
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -215,21 +215,21 @@ void Deposition::perform_deposition(Atom& atom, Box& box)
   std::uniform_real_distribution<double> dist_y(0.0, ly);
 
   for (int n = 0; n < num_deposit; ++n) {
-    new_symbols.push_back(atom_symbols[type_deposit]);
-    new_types.push_back(type_deposit);
-    new_masses.push_back(deposit_mass);
+    deposit_symbols.push_back(atom_symbols[type_deposit]);
+    deposit_types.push_back(type_deposit);
+    deposit_masses.push_back(deposit_mass);
     
-    new_positions.push_back(dist_x(gen));
-    new_positions.push_back(dist_y(gen));
-    new_positions.push_back(z_pos);
+    deposit_positions.push_back(dist_x(gen));
+    deposit_positions.push_back(dist_y(gen));
+    deposit_positions.push_back(z_pos);
     
-    new_velocities.push_back(0.0);
-    new_velocities.push_back(0.0);
-    new_velocities.push_back(-vz_deposit);
+    deposit_velocities.push_back(0.0);
+    deposit_velocities.push_back(0.0);
+    deposit_velocities.push_back(-vz_deposit);
   }
-  
+
   int old_N = atom.number_of_atoms;
-  add_atoms_to_system(atom, num_deposit, new_symbols, new_types, new_masses, new_positions, new_velocities);
+  add_atoms_to_system(atom, num_deposit, deposit_symbols, deposit_types, deposit_masses, deposit_positions, deposit_velocities);
   int new_N = atom.number_of_atoms;
   
   num_deposited_total += num_deposit;
