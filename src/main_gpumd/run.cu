@@ -304,7 +304,7 @@ void Run::perform_a_run()
 
     mc.compute(step, number_of_steps, atom, box, group);
 
-    deposition.compute(step, atom, box);
+    deposition.compute(step, atom, box, group);
 
     measure.process(
       number_of_steps,

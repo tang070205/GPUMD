@@ -27,6 +27,7 @@ Example: deposition 1000 0 5 1 10
 
 #include "model/atom.cuh"
 #include "model/box.cuh"
+#include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
@@ -34,7 +35,7 @@ class Deposition
 {
 public:
   void parse(const char** param, int num_param);
-  void compute(int step, Atom& atom, Box& box);
+  void compute(int step, Atom& atom, Box& box, std::vector<Group>& group);
   void finalize(void);
   bool is_active() const { return is_deposition; }
 
@@ -48,8 +49,9 @@ private:
   int num_deposition_events = 0;         // number of deposition events
   double deposit_mass = 0.0;             // mass of the deposited atom
   double vz_deposit = 0.0;               // z-velocity (negative for deposition)
-  double z_position_fraction = 0.75;     // z position as fraction of box (default 3/4)
+  double z_position = 0.0;               // z position 
   std::vector<std::string> atom_symbols; // symbols of the atoms for poential
+  std::vector<int> deposit_group;        // group labels for deposited atoms per grouping method
 
-  void perform_deposition(Atom& atom, Box& box);
+  void perform_deposition(Atom& atom, Box& box, std::vector<Group>& group);
 };

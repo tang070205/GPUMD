@@ -69,7 +69,9 @@ static void add_atoms_to_system(
   const std::vector<int>& types_to_add,
   const std::vector<double>& masses_to_add,
   const std::vector<double>& positions_to_add,
-  const std::vector<double>& velocities_to_add)
+  const std::vector<double>& velocities_to_add,
+  std::vector<Group>& groups,
+  const std::vector<int>& group_to_add)
 {
   const int old_N = atom.number_of_atoms;
   const int new_N = old_N + num_deposit;
@@ -104,7 +106,7 @@ static void add_atoms_to_system(
       new_virial[i * 9 + k] = old_virial[i * 9 + k];
     }
   }
-  
+
   for (int i = 0; i < num_deposit; ++i) {
     int idx = old_N + i;
     new_cpu_type[idx] = types_to_add[i];
@@ -115,7 +117,7 @@ static void add_atoms_to_system(
       new_cpu_vel[idx + d * new_N] = velocities_to_add[i * 3 + d];
     }
   }
-  
+
   atom.cpu_type = std::move(new_cpu_type);
   atom.cpu_atom_symbol = std::move(new_cpu_atom_symbol);
   atom.cpu_mass = std::move(new_cpu_mass);
@@ -140,14 +142,33 @@ static void add_atoms_to_system(
   atom.force_per_atom.copy_from_host(new_force.data());
   atom.virial_per_atom.copy_from_host(new_virial.data());
   atom.potential_per_atom.copy_from_host(new_potential.data());
+
+  for (int m = 0; m < groups.size(); ++m) {
+    std::vector<int> new_cpu_label(new_N);
+    for (int i = 0; i < old_N; ++i) {
+      new_cpu_label[i] = groups[m].cpu_label[i];
+    }
+    for (int i = 0; i < num_deposit; ++i) {
+      new_cpu_label[old_N + i] = group_to_add[m];
+    }
+    groups[m].cpu_label = std::move(new_cpu_label);
+    groups[m].label.resize(new_N);
+    groups[m].size.resize(groups[m].number);
+    groups[m].size_sum.resize(groups[m].number);
+    groups[m].contents.resize(new_N);
+    groups[m].label.copy_from_host(groups[m].cpu_label.data());
+    groups[m].size.copy_from_host(groups[m].cpu_size.data());
+    groups[m].size_sum.copy_from_host(groups[m].cpu_size_sum.data());
+    groups[m].contents.copy_from_host(groups[m].cpu_contents.data());
+  }
 }
 
 void Deposition::parse(const char** param, int num_param)
 {
   printf("Deposition: Initialize atom deposition (single type).\n");
   
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("deposition should have 4 parameters.\n");
+  if (num_param != 6) {
+    PRINT_INPUT_ERROR("deposition should have 5 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &deposit_interval)) {
@@ -181,25 +202,32 @@ void Deposition::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of atoms should > 0.\n");
   }
 
-  printf("    Will deposit %d atoms of type %d (%s, mass %g) per event\n", 
-         num_deposit, type_deposit, atom_symbols[type_deposit].c_str(), deposit_mass);
-  printf("    Total atoms per deposition: %d\n", num_deposit);
-  printf("    Z-position: %g * Lz \n", z_position_fraction);
-  printf("    Z-velocity: %g A/fs \n", vz_deposit);
-
   if (!is_valid_real(param[4], &vz_deposit)) {
     PRINT_INPUT_ERROR("velocity should be a number.\n");
   }
-  if (vz_deposit <= 0) {
-    PRINT_INPUT_ERROR("velocity should > 0.\n");
+  if (vz_deposit == 0) {
+    PRINT_INPUT_ERROR("velocity should be non-zero.\n");
   }
+
+  if (!is_valid_real(param[5], &z_position)) {
+    PRINT_INPUT_ERROR("position should be a number.\n");
+  }
+  if (z_position <= 0) {
+    PRINT_INPUT_ERROR("position should > 0.\n");
+  }
+
+  printf("    Will deposit %d atoms of type %d (%s, mass %g) per event\n", 
+         num_deposit, type_deposit, atom_symbols[type_deposit].c_str(), deposit_mass);
+  printf("    Total atoms per deposition: %d\n", num_deposit);
+  printf("    Z-velocity: %g A/fs \n", vz_deposit);
+  printf("    Z-position: %g \n", z_position);
 
   is_deposition = true;
 }
 
-void Deposition::perform_deposition(Atom& atom, Box& box)
+void Deposition::perform_deposition(Atom& atom, Box& box, std::vector<Group>& group)
 {
-  double z_pos = z_position_fraction * box.cpu_h[8];
+  double z_pos = z_position;
   double lx = box.cpu_h[0];
   double ly = box.cpu_h[4];
   
@@ -231,13 +259,20 @@ void Deposition::perform_deposition(Atom& atom, Box& box)
     
     deposit_velocities[n * 3 + 0] = 0.0;
     deposit_velocities[n * 3 + 1] = 0.0;
-    deposit_velocities[n * 3 + 2] = -vz_deposit;
+    deposit_velocities[n * 3 + 2] = vz_deposit;
   }
   
+  if (num_deposition_events == 0) {
+    deposit_group.resize(group.size());
+    for (int m = 0; m < group.size(); ++m) {
+      deposit_group[m] = group[m].number;
+    }
+  }
+
   int old_N = atom.number_of_atoms;
-  add_atoms_to_system(atom, num_deposit, deposit_symbols, deposit_types, deposit_masses, deposit_positions, deposit_velocities);
+  add_atoms_to_system(atom, num_deposit, deposit_symbols, deposit_types, deposit_masses, deposit_positions, deposit_velocities, group, deposit_group);
   int new_N = atom.number_of_atoms;
-  
+
   num_deposited_total += num_deposit;
   num_deposition_events++;
 
@@ -245,10 +280,10 @@ void Deposition::perform_deposition(Atom& atom, Box& box)
          num_deposit, type_deposit, old_N, new_N, num_deposition_events);
 }
 
-void Deposition::compute(int step, Atom& atom, Box& box)
+void Deposition::compute(int step, Atom& atom, Box& box, std::vector<Group>& group)
 {
   if (step % deposit_interval == 0 && is_deposition){
-    perform_deposition(atom, box);
+    perform_deposition(atom, box, group);
   } else {
     return;
   }
@@ -263,4 +298,5 @@ void Deposition::finalize(void)
   is_deposition = false;
   num_deposited_total = 0;
   num_deposition_events = 0;
+  deposit_group.clear();
 }
