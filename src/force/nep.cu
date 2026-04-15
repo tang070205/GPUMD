@@ -1321,6 +1321,23 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  const int current_num_atoms = type.size();
+  if (nep_data.NN_radial.size() < current_num_atoms) {
+    nep_data.f12x.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.f12y.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.f12z.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.NN_radial.resize(current_num_atoms);
+    nep_data.NL_radial.resize(current_num_atoms * paramb.MN_radial);
+    nep_data.NN_angular.resize(current_num_atoms);
+    nep_data.NL_angular.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.Fp.resize(current_num_atoms * annmb.dim);
+    nep_data.sum_fxyz.resize(
+      current_num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+    nep_data.cpu_NN_radial.resize(current_num_atoms);
+    nep_data.cpu_NN_angular.resize(current_num_atoms);
+    printf("    NEP data resized for deposition: N = %d\n", current_num_atoms);
+  }
+
   const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
   if (is_small_box) {
     // update small_box_data
@@ -1774,6 +1791,23 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  const int current_num_atoms = type.size();
+  if (nep_data.NN_radial.size() < current_num_atoms) {
+    nep_data.f12x.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.f12y.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.f12z.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.NN_radial.resize(current_num_atoms);
+    nep_data.NL_radial.resize(current_num_atoms * paramb.MN_radial);
+    nep_data.NN_angular.resize(current_num_atoms);
+    nep_data.NL_angular.resize(current_num_atoms * paramb.MN_angular);
+    nep_data.Fp.resize(current_num_atoms * annmb.dim);
+    nep_data.sum_fxyz.resize(
+      current_num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+    nep_data.cpu_NN_radial.resize(current_num_atoms);
+    nep_data.cpu_NN_angular.resize(current_num_atoms);
+    printf("    NEP data resized for deposition: N = %d\n", current_num_atoms);
+  }
+
   const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
 
   if (is_small_box) {
