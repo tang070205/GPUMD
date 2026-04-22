@@ -48,7 +48,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   const int N = population_size * number_of_variables;
   int num = number_of_variables;
-  if (para.version != 3) {
+  if (para.version != 3 && !para.use_element_embedding) {
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
@@ -264,13 +264,31 @@ void SNES::find_type_of_variable(Parameters& para)
   if (para.version != 3) {
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
-      for (int t = 0; t < para.num_types; ++t) {
+      if (para.use_element_embedding) {
+        // When using element embedding, all types share one ANN
+        // wb parameters are treated as global (type = num_types)
         for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
-          type_of_variable[n + offset] = t;
+          type_of_variable[n + offset] = para.num_types;
         }
         offset += para.number_of_variables_ann_1;
+        offset += para.charge_mode ? 2 : 1; // the bias
+
+        // element embedding parameters are associated with each type
+        for (int t = 0; t < para.num_types; ++t) {
+          for (int n = 0; n < para.embedding_dim; ++n) {
+            type_of_variable[n + offset] = t;
+          }
+          offset += para.embedding_dim;
+        }
+      } else {
+        for (int t = 0; t < para.num_types; ++t) {
+          for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
+            type_of_variable[n + offset] = t;
+          }
+          offset += para.number_of_variables_ann_1;
+        }
+        offset += para.charge_mode ? 2 : 1; // the bias
       }
-      offset += para.charge_mode ? 2 : 1; // the bias
     }
   } else {
     offset += para.number_of_variables_ann_1 + 1;
