@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
   is_save_potential_set = false;
+  is_element_embedding_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -108,6 +109,8 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
+  use_element_embedding = false;
+  embedding_dim = 4;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -213,12 +216,18 @@ void Parameters::calculate_parameters()
     dim += 1; // concatenate temeprature with descriptors
   }
 
+  int dim_with_embedding = dim + (use_element_embedding ? embedding_dim : 0);
+  int num_ann_sets = (version == 4 && !use_element_embedding) ? num_types : 1;
+
   if (num_hidden_layers == 2) {
-    number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
+    number_of_variables_ann_1 = (dim_with_embedding + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
   } else {
-    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
+    number_of_variables_ann_1 = (dim_with_embedding + 2) * num_neurons1;
   }
-  number_of_variables_ann = number_of_variables_ann_1 * (version == 4 ? num_types : 1) + 1;
+  number_of_variables_ann = number_of_variables_ann_1 * num_ann_sets + 1;
+  if (use_element_embedding) {
+    number_of_variables_ann += num_types * embedding_dim;
+  }
   if (charge_mode && version == 4) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
@@ -254,6 +263,7 @@ void Parameters::calculate_parameters()
   }
 
   q_scaler_cpu.resize(dim, 1.0e10f);
+
   if (fine_tune) {
     std::ifstream input(fine_tune_nep_txt);
     if (!input.is_open()) {
@@ -497,6 +507,12 @@ void Parameters::report_inputs()
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
+  if (is_element_embedding_set) {
+    printf("    (input)   embedding dimension = %d.\n", embedding_dim);
+  } else {
+    printf("    (default) embedding dimension = %d.\n", embedding_dim);
+  }
+
   if (is_lambda_1_set) {
     printf("    (input)   lambda_1 = %g.\n", lambda_1);
   } else {
@@ -664,6 +680,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
     parse_save_potential(param, num_param);
+  } else if (strcmp(param[0], "element_embedding") == 0) {
+    parse_element_embedding(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1401,4 +1419,21 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   if (save_potential_restart != 0 && save_potential_restart != 1) {
     PRINT_INPUT_ERROR("save_potential save restart should be 0 or 1.");
   }  
+}
+
+void Parameters::parse_element_embedding(const char** param, int num_param)
+{
+  is_element_embedding_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("element_embedding should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &embedding_dim)) {
+    PRINT_INPUT_ERROR("element_embedding dimension should be an integer.\n");
+  }
+  if (embedding_dim < 1) {
+    PRINT_INPUT_ERROR("element_embedding dimension should >= 1.");
+  } else if (embedding_dim > 16) {
+    PRINT_INPUT_ERROR("element_embedding dimension should <= 16.");
+  }
+  use_element_embedding = true;
 }
