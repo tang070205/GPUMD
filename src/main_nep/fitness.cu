@@ -404,10 +404,14 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
 
   if (para.num_hidden_layers == 2) {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
+    fprintf(fid_nep, "ANN %d %d", para.num_neurons1, para.num_neurons2);
   } else {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+    fprintf(fid_nep, "ANN %d %d", para.num_neurons1, 0);
   }
+  if (para.use_element_embedding) {
+    fprintf(fid_nep, " %d", para.embedding_dim);
+  }
+  fprintf(fid_nep, "\n");
 
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
@@ -464,7 +468,14 @@ void Fitness::report_error(
 
     // correct the last bias parameter in the NN
     if (para.train_mode == 0 || para.train_mode == 3) {
-      elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+      int bias_index;
+      if (para.use_element_embedding) {
+        // Layout: [wb_shared, b, element_embedding, c]
+        bias_index = para.number_of_variables_ann_1;
+      } else {
+        bias_index = para.number_of_variables_ann - 1;
+      }
+      elite[bias_index] += energy_shift_per_structure;
     }
 
     float rmse_energy_test = 0.0f;
@@ -500,6 +511,18 @@ void Fitness::report_error(
       FILE* fid_nep = my_fopen(filename.c_str(), "w");
       write_nep_txt(fid_nep, para, elite);
       fclose(fid_nep);
+    }
+
+    if (para.use_element_embedding) {
+      printf("Step %d element_embedding:\n", generation + 1);
+      int offset = para.number_of_variables_ann_1 + 1; // after wb and b
+      for (int t = 0; t < para.num_types; ++t) {
+        printf("  type %d (%s):", t, para.elements[t].c_str());
+        for (int d = 0; d < para.embedding_dim; ++d) {
+          printf(" %12.5e", elite[offset + t * para.embedding_dim + d]);
+        }
+        printf("\n");
+      }
     }
 
     if (para.train_mode == 0 || para.train_mode == 3) {
