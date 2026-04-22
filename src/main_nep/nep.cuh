@@ -56,6 +56,8 @@ public:
     int num_types_sq = 0;
     int num_c_radial = 0;
     int version = 4; // 3 for NEP3 and 4 for NEP4
+    int embedding_dim = 0;
+    bool use_element_embedding = false;
   };
 
   struct ANN {
@@ -68,6 +70,11 @@ public:
     const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
     const float* b;                 // bias for the output layer
     const float* c;                 // for elements in descriptor
+    // Element embedding parameters
+    bool use_element_embedding = false;
+    int embedding_dim = 0;
+    int num_types = 0;
+    const float* element_embedding; // element embedding matrix (num_types * embedding_dim)
   };
 
   struct ZBL {
