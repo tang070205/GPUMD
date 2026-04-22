@@ -222,6 +222,8 @@ NEP::NEP(
   int deviceCount)
 {
   paramb.version = version;
+  paramb.use_element_embedding = para.use_element_embedding;
+  paramb.embedding_dim = para.embedding_dim;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
@@ -268,12 +270,16 @@ NEP::NEP(
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_hidden_layers = para.num_hidden_layers;
     annmb[device_id].num_para = para.number_of_variables;
+    annmb[device_id].use_element_embedding = para.use_element_embedding;
+    annmb[device_id].embedding_dim = para.embedding_dim;
+    annmb[device_id].num_types = para.num_types;
+    int dim_input = para.dim + (para.use_element_embedding ? para.embedding_dim : 0);
     if (para.num_hidden_layers == 2) {
       annmb[device_id].num_neurons2 = para.num_neurons2;
-      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 1) * annmb[device_id].num_neurons1 +
+      annmb[device_id].one_ann_no_bias = (dim_input + 1) * annmb[device_id].num_neurons1 +
         (annmb[device_id].num_neurons1 + 2) * annmb[device_id].num_neurons2;
     } else {
-      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 2) * annmb[device_id].num_neurons1;
+      annmb[device_id].one_ann_no_bias = (dim_input + 2) * annmb[device_id].num_neurons1;
     }
 
     nep_data[device_id].NN_radial.resize(N);
@@ -296,7 +302,11 @@ NEP::NEP(
 void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
-  for (int t = 0; t < paramb.num_types; ++t) {
+
+  // If using element embedding, all elements share one ANN
+  int num_ann_sets = (ann.use_element_embedding || paramb.version == 3) ? 1 : paramb.num_types;
+
+  for (int t = 0; t < num_ann_sets; ++t) {
     if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
       pointer -= ann.one_ann_no_bias;
     }
@@ -305,6 +315,15 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   }
   ann.b = pointer;
   pointer += 1;
+
+  // Set element embedding matrix pointer (if enabled)
+  // element_embedding comes BEFORE descriptor parameters (c) in memory
+  if (ann.use_element_embedding) {
+    ann.element_embedding = pointer;
+    pointer += ann.num_types * ann.embedding_dim;
+  }
+
+  // c (descriptor parameters) comes after all ANN parameters including element_embedding
   ann.c = pointer;
 }
 
@@ -361,38 +380,52 @@ static __global__ void apply_ann(
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   int type = g_type[n1];
   if (n1 < N) {
-    // get descriptors
+    // get descriptors with optional element embedding
     float q[MAX_DIM] = {0.0f};
+    int dim_input = annmb.dim;
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
+
+    // Append element embedding if enabled
+    if (annmb.use_element_embedding) {
+      dim_input += annmb.embedding_dim;
+      for (int d = 0; d < annmb.embedding_dim; ++d) {
+        q[annmb.dim + d] = annmb.element_embedding[type * annmb.embedding_dim + d];
+      }
+    }
+
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     const int neu1 = annmb.num_neurons1;
-    const int neu1_dim = neu1 * annmb.dim;
+    const int neu1_dim = neu1 * dim_input;
+
+    // When using element embedding, all types use the same network (wb[0])
+    int ann_index = annmb.use_element_embedding ? 0 : type;
+
     if (annmb.num_hidden_layers == 2) {
       const int neu2 = annmb.num_neurons2;
       apply_ann_two_layers(
-        annmb.dim,
+        dim_input,
         neu1,
         neu2,
-        annmb.wb[type],
-        annmb.wb[type] + neu1_dim,
-        annmb.wb[type] + neu1 * (annmb.dim + 1),
-        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2),
-        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
+        annmb.wb[ann_index],
+        annmb.wb[ann_index] + neu1_dim,
+        annmb.wb[ann_index] + neu1 * (dim_input + 1),
+        annmb.wb[ann_index] + neu1 * (dim_input + 1 + neu2),
+        annmb.wb[ann_index] + neu1 * (dim_input + 1 + neu2) + neu2,
         annmb.b,
         q,
         F,
         Fp);
     } else {
       apply_ann_one_layer(
-        annmb.dim,
+        dim_input,
         neu1,
-        annmb.wb[type],
-        annmb.wb[type] + neu1_dim,
-        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.wb[ann_index],
+        annmb.wb[ann_index] + neu1_dim,
+        annmb.wb[ann_index] + neu1 * (dim_input + 1),
         annmb.b,
         q,
         F,
@@ -421,21 +454,35 @@ static __global__ void apply_ann_temperature(
   int type = g_type[n1];
   float temperature = g_temperature[n1];
   if (n1 < N) {
-    // get descriptors
+    // get descriptors with optional element embedding
     float q[MAX_DIM] = {0.0f};
+    int dim_input = annmb.dim;
     for (int d = 0; d < annmb.dim - 1; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
     g_q_scaler[annmb.dim - 1] = 0.001; // temperature dimension scaler
     q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
+
+    // Append element embedding if enabled
+    if (annmb.use_element_embedding) {
+      dim_input += annmb.embedding_dim;
+      for (int d = 0; d < annmb.embedding_dim; ++d) {
+        q[annmb.dim + d] = annmb.element_embedding[type * annmb.embedding_dim + d];
+      }
+    }
+
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+
+    // When using element embedding, all types use the same network (wb[0])
+    int ann_index = annmb.use_element_embedding ? 0 : type;
+
     apply_ann_one_layer(
-      annmb.dim,
+      dim_input,
       annmb.num_neurons1,
-      annmb.wb[type],
-      annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-      annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+      annmb.wb[ann_index],
+      annmb.wb[ann_index] + annmb.num_neurons1 * dim_input,
+      annmb.wb[ann_index] + annmb.num_neurons1 * (dim_input + 1),
       annmb.b,
       q,
       F,
@@ -802,6 +849,7 @@ void NEP::find_force(
       FILE* fid_descriptor = my_fopen("descriptor.out", "a");
       std::vector<float> descriptor_cpu(nep_data[device_id].descriptors.size());
       nep_data[device_id].descriptors.copy_to_host(descriptor_cpu.data());
+
       for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
         float q_structure[MAX_DIM] = {0.0f};
         for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
