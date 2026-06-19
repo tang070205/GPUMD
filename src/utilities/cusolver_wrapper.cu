@@ -23,6 +23,10 @@ Some wrappers for the cuSOLVER library
 #include "gpu_vector.cuh"
 #ifdef USE_HIP
   #include <hipsolver/hipsolver.h>
+#elif defined(USE_MUSA)
+  #include <musolverDn.h>
+#elif defined(USE_MXMACA)
+  #include <mcsolverDn.h>
 #else
   #include <cusolverDn.h>
 #endif

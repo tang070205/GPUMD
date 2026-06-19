@@ -640,6 +640,10 @@ static void find_cell_list(
   thrust::exclusive_scan(
 #ifdef USE_HIP
     thrust::hip::par.on(stream),
+#elif defined(USE_MUSA)
+    thrust::musa::par.on(stream),
+#elif defined(USE_MXMACA)
+    thrust::mxmaca::par.on(stream),
 #else
     thrust::cuda::par.on(stream),
 #endif

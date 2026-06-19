@@ -20,6 +20,10 @@
 #include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
+#elif defined(USE_MUSA)
+  #include <murand_kernel.h>
+#elif defined(USE_MXMACA)
+  #include <mcrand_kernel.h>
 #else
   #include <curand_kernel.h>
 #endif

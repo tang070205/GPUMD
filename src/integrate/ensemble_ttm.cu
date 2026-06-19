@@ -33,6 +33,10 @@ channel for heat transport across metal-nonmetal heterointerfaces.
 
 #ifdef USE_HIP
   #define TTM_RAND_UNIFORM(a) hiprand_uniform(a)
+#elif defined(USE_MUSA)
+    #define TTM_RAND_UNIFORM(a) murand_uniform(a)
+#elif defined(USE_MXMACA)
+    #define TTM_RAND_UNIFORM(a) mcrand_uniform(a)
 #else
   #define TTM_RAND_UNIFORM(a) curand_uniform(a)
 #endif
