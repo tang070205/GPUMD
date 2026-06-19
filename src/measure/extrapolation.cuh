@@ -20,7 +20,7 @@
 #elif defined(USE_MUSA)
 #include <mublas_v2.h>
 #elif defined(USE_MXMACA)
-#include <mcblas.h>
+#include <mcblas/mcblas.h>
 #else
 #include <cublas_v2.h>
 #endif

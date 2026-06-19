@@ -26,7 +26,7 @@ Some wrappers for the cuSOLVER library
 #elif defined(USE_MUSA)
   #include <musolverDn.h>
 #elif defined(USE_MXMACA)
-  #include <mcsolverDn.h>
+  #include <mcsolver/mcsolverDn.h>
 #else
   #include <cusolverDn.h>
 #endif
