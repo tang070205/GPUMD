@@ -56,8 +56,8 @@ void NEP_Charge::check_ewald_pppm()
     std::vector<std::string> tokens = get_tokens(line);
     if (tokens.size() != 0) {
       if (tokens[0] == "kspace") {
-        if (tokens.size() != 2) {
-          std::cout << "kspace must have 1 parameter\n";
+        if (tokens.size() != 2 && tokens.size() != 4) {
+          std::cout << "kspace must have 1 or 3 parameters\n";
           exit(1);
         }
         std::string kspace_method = tokens[1];
@@ -68,6 +68,18 @@ void NEP_Charge::check_ewald_pppm()
         } else {
           std::cout << "kspace method can only be ewald or pppm\n";
           exit(1);
+        }
+        if (tokens.size() == 4) {
+          if (tokens[2] != "slab") {
+            std::cout << "the second parameter of kspace can only be slab\n";
+            exit(1);
+          }
+          use_slab_correction = true;
+          slab_volfac = get_double_from_token(tokens[3], __FILE__, __LINE__);
+          if (slab_volfac < 1.0f) {
+            std::cout << "slab volume factor must be >= 1.0\n";
+            exit(1);
+          }
         }
       }
     }
@@ -343,6 +355,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   check_ewald_pppm();
+  if (use_slab_correction) {
+    slab_dipole.resize(1);
+  }
   if (use_pppm) {
     pppm.initialize(charge_para.alpha);
   } else {
@@ -633,6 +648,70 @@ static __global__ void zero_mean_D_real(const int N, float* g_D_real)
     if (n < N) {
       g_D_real[n] -= mean_D;
     }
+  }
+}
+
+// Yeh-Berkowitz slab correction (J. Chem. Phys. 111, 3155 (1999)):
+// E_corr = 2*pi*K_C*M_z^2/V' removes the artificial dipole interaction
+// between periodically repeated slabs along z. Since the charges have
+// been shifted to zero mean, M_z is independent of the z origin.
+static __global__ void
+find_dipole_z(const int N, const float* g_charge, const double* g_z, double* g_dipole)
+{
+  int tid = threadIdx.x;
+  int number_of_batches = (N - 1) / 1024 + 1;
+  __shared__ double s_dipole[1024];
+  double dipole = 0.0;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < N) {
+      dipole += (double)g_charge[n] * g_z[n];
+    }
+  }
+  s_dipole[tid] = dipole;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_dipole[tid] += s_dipole[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_dipole[0] = s_dipole[0];
+  }
+}
+
+// Per-atom contributions of the slab correction, with
+// factor = 2*pi*K_C/(volfac*volume):
+// energy:  pe_n     += factor * q_n * M_z * z_n
+// force:   fz_n     += -2 * factor * q_n * M_z
+// virial:  W_zz,n   += z_n * fz_n (GPUMD convention: virial = r x F)
+// D_real:  D_real_n += 2 * factor * M_z * z_n  (dE/dq_n)
+static __global__ void apply_slab_correction(
+  const int N,
+  const int N1,
+  const int N2,
+  const double factor,
+  const float* g_charge,
+  const double* g_z,
+  const double* g_dipole,
+  float* g_D_real,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    const double M_z = g_dipole[0];
+    const double q = (double)g_charge[n];
+    const double z = g_z[n];
+    const double fz = -2.0 * factor * q * M_z;
+    g_pe[n] += factor * q * M_z * z;
+    g_fz[n] += fz;
+    g_virial[n + 2 * N] += z * fz;
+    g_D_real[n] += (float)(2.0 * factor * M_z * z);
   }
 }
 
@@ -1426,6 +1505,32 @@ void NEP_Charge::compute_large_box(
       potential_per_atom);
   }
 
+  if (use_slab_correction) {
+    // Yeh-Berkowitz slab correction requires an orthogonal box with normal along z
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("The slab correction requires an orthogonal box with normal along z.");
+    }
+    find_dipole_z<<<1, 1024>>>(
+      N, nep_data.charge.data(), position_per_atom.data() + N * 2, slab_dipole.data());
+    GPU_CHECK_KERNEL
+    const double slab_factor = 2.0 * PI * K_C_SP / (slab_volfac * box.get_volume());
+    apply_slab_correction<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      N1,
+      N2,
+      slab_factor,
+      nep_data.charge.data(),
+      position_per_atom.data() + N * 2,
+      slab_dipole.data(),
+      nep_data.D_real.data(),
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
+  }
+
   if (paramb.charge_mode == 1) {
     find_force_charge_real_space<<<grid_size, BLOCK_SIZE>>>(
       N,
@@ -1699,6 +1804,32 @@ void NEP_Charge::compute_small_box(
       force_per_atom,
       virial_per_atom,
       potential_per_atom);
+  }
+
+  if (use_slab_correction) {
+    // Yeh-Berkowitz slab correction requires an orthogonal box with normal along z
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("The slab correction requires an orthogonal box with normal along z.");
+    }
+    find_dipole_z<<<1, 1024>>>(
+      N, nep_data.charge.data(), position_per_atom.data() + N * 2, slab_dipole.data());
+    GPU_CHECK_KERNEL
+    const double slab_factor = 2.0 * PI * K_C_SP / (slab_volfac * box.get_volume());
+    apply_slab_correction<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      N1,
+      N2,
+      slab_factor,
+      nep_data.charge.data(),
+      position_per_atom.data() + N * 2,
+      slab_dipole.data(),
+      nep_data.D_real.data(),
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
   }
 
   if (paramb.charge_mode == 1) {

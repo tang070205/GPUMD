@@ -178,6 +178,9 @@ private:
 
   bool use_pppm = true; // use PPPM by default
   void check_ewald_pppm();
+  bool use_slab_correction = false; // Yeh-Berkowitz slab dipole correction
+  float slab_volfac = 1.0f;         // volume factor for the slab correction
+  GPU_Vector<double> slab_dipole;   // size 1, M_z on device
   bool has_dftd3 = false;
   void initialize_dftd3();
 };
