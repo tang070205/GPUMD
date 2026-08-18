@@ -70,15 +70,15 @@ void NEP_Charge::check_ewald_pppm()
           exit(1);
         }
       }
-      if (tokens[0] == "slab") {
+      if (tokens[0] == "correct_slab") {
         if (tokens.size() != 2) {
-          std::cout << "slab must have 1 parameter\n";
+          std::cout << "correct_slab must have 1 parameter\n";
           exit(1);
         }
         use_slab_correction = true;
         slab_volfac = get_double_from_token(tokens[1], __FILE__, __LINE__);
         if (slab_volfac < 1.0f) {
-          std::cout << "slab volume factor must be >= 1.0\n";
+          std::cout << "correct_slab volume factor must be >= 1.0\n";
           exit(1);
         }
       }

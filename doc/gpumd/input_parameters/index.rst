@@ -42,7 +42,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    electron_stop
    fix
    kspace
-   slab
+   correct_slab
    move
    mc
    plumed

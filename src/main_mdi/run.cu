@@ -787,7 +787,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "kspace") == 0) {
     // nothing here; will be handled elsewhere
-  } else if (strcmp(param[0], "slab") == 0) {
+  } else if (strcmp(param[0], "correct_slab") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere

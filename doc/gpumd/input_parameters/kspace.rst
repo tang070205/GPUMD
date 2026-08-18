@@ -17,7 +17,7 @@ This keyword is used as follows::
 where :attr:`<method>` can be either `ewald` or `pppm`.
 The default is `pppm`, which implies that the particle-particle particle-mesh (PPPM) method is used.
 
-For slab geometries that are periodic in the :math:`x` and :math:`y` directions and have a vacuum layer along :math:`z`, the Yeh-Berkowitz dipole correction can be activated using the :ref:`slab <kw_slab>` keyword.
+For slab geometries that are periodic in the :math:`x` and :math:`y` directions and have a vacuum layer along :math:`z`, the Yeh-Berkowitz dipole correction can be activated using the :ref:`correct_slab <kw_correct_slab>` keyword.
 
 Example
 -------

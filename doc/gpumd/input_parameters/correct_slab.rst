@@ -1,9 +1,9 @@
-.. _kw_slab:
+.. _kw_correct_slab:
 .. index::
-   single: slab (keyword in run.in)
+   single: correct_slab (keyword in run.in)
 
-:attr:`slab`
-============
+:attr:`correct_slab`
+====================
 
 This keyword is used to activate the Yeh-Berkowitz dipole correction [Yeh1999]_ for slab geometries that are periodic in the :math:`x` and :math:`y` directions and have a vacuum layer along :math:`z`.
 It only takes effect when a charge (qNEP) potential is used.
@@ -13,7 +13,7 @@ Syntax
 
 This keyword is used as follows::
 
-  slab <volfac>
+  correct_slab <volfac>
 
 It removes the artificial electrostatic interaction between periodically repeated slabs along the out-of-plane direction, adding the correction energy
 
@@ -32,7 +32,7 @@ Example
 To use the PPPM method with the slab dipole correction use::
 
    kspace pppm
-   slab 1.0
+   correct_slab 1.0
 
 References
 ----------
