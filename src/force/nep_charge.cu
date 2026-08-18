@@ -56,8 +56,8 @@ void NEP_Charge::check_ewald_pppm()
     std::vector<std::string> tokens = get_tokens(line);
     if (tokens.size() != 0) {
       if (tokens[0] == "kspace") {
-        if (tokens.size() != 2 && tokens.size() != 4) {
-          std::cout << "kspace must have 1 or 3 parameters\n";
+        if (tokens.size() != 2) {
+          std::cout << "kspace must have 1 parameter\n";
           exit(1);
         }
         std::string kspace_method = tokens[1];
@@ -69,17 +69,17 @@ void NEP_Charge::check_ewald_pppm()
           std::cout << "kspace method can only be ewald or pppm\n";
           exit(1);
         }
-        if (tokens.size() == 4) {
-          if (tokens[2] != "slab") {
-            std::cout << "the second parameter of kspace can only be slab\n";
-            exit(1);
-          }
-          use_slab_correction = true;
-          slab_volfac = get_double_from_token(tokens[3], __FILE__, __LINE__);
-          if (slab_volfac < 1.0f) {
-            std::cout << "slab volume factor must be >= 1.0\n";
-            exit(1);
-          }
+      }
+      if (tokens[0] == "slab") {
+        if (tokens.size() != 2) {
+          std::cout << "slab must have 1 parameter\n";
+          exit(1);
+        }
+        use_slab_correction = true;
+        slab_volfac = get_double_from_token(tokens[1], __FILE__, __LINE__);
+        if (slab_volfac < 1.0f) {
+          std::cout << "slab volume factor must be >= 1.0\n";
+          exit(1);
         }
       }
     }
@@ -1506,11 +1506,13 @@ void NEP_Charge::compute_large_box(
   }
 
   if (use_slab_correction) {
-    // Yeh-Berkowitz slab correction requires an orthogonal box with normal along z
+    // Yeh-Berkowitz slab correction requires the slab normal along z:
+    // box vectors a and b must lie in the xy plane and c along z.
+    // In-plane tilt (e.g. hexagonal cells with nonzero cpu_h[1] or cpu_h[3]) is allowed.
     if (
-      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-      PRINT_INPUT_ERROR("The slab correction requires an orthogonal box with normal along z.");
+      box.cpu_h[2] != 0 || box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR(
+        "The slab correction requires box vectors a and b in the xy plane and c along z.");
     }
     find_dipole_z<<<1, 1024>>>(
       N, nep_data.charge.data(), position_per_atom.data() + N * 2, slab_dipole.data());
@@ -1807,11 +1809,13 @@ void NEP_Charge::compute_small_box(
   }
 
   if (use_slab_correction) {
-    // Yeh-Berkowitz slab correction requires an orthogonal box with normal along z
+    // Yeh-Berkowitz slab correction requires the slab normal along z:
+    // box vectors a and b must lie in the xy plane and c along z.
+    // In-plane tilt (e.g. hexagonal cells with nonzero cpu_h[1] or cpu_h[3]) is allowed.
     if (
-      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-      PRINT_INPUT_ERROR("The slab correction requires an orthogonal box with normal along z.");
+      box.cpu_h[2] != 0 || box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR(
+        "The slab correction requires box vectors a and b in the xy plane and c along z.");
     }
     find_dipole_z<<<1, 1024>>>(
       N, nep_data.charge.data(), position_per_atom.data() + N * 2, slab_dipole.data());
