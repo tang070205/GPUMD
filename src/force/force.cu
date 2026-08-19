@@ -33,6 +33,7 @@ The driver class calculating force and related quantities.
 #include "nep.cuh"
 #include "nep_multigpu.cuh"
 #include "nep_charge.cuh"
+#include "nep_charge_multigpu.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -121,7 +122,29 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge3") == 0) {
-    potential.reset(new NEP_Charge(param[1], number_of_atoms));
+    int num_gpus;
+    CHECK(gpuGetDeviceCount(&num_gpus));
+#ifdef ZHEYONG
+    num_gpus = 3;
+#endif
+    if (num_gpus == 1) {
+      potential.reset(new NEP_Charge(param[1], number_of_atoms));
+    } else {
+      int partition_direction = -1;
+      if (num_param == 3) {
+        if (strcmp(param[2], "x") == 0) {
+          partition_direction = 0;
+        } else if (strcmp(param[2], "y") == 0) {
+          partition_direction = 1;
+        } else if (strcmp(param[2], "z") == 0) {
+          partition_direction = 2;
+        } else {
+          PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.\n");
+        }
+      }
+      potential.reset(
+        new NEP_Charge_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
+    }
     is_nep = true;
     check_types(param[1]);
   } else if (
