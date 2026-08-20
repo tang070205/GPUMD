@@ -36,8 +36,13 @@ private:
   double P;
 
 public:
-  Minimizer_FIRE(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
+  Minimizer_FIRE(
+    const int fixed_group,
+    const int fixed_grouping_method,
+    const int number_of_atoms,
+    const int number_of_steps,
+    const double force_tolerance)
+    : Minimizer(fixed_group, fixed_grouping_method, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 

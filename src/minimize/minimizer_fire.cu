@@ -26,6 +26,22 @@ Reference: PhysRevLett 97, 170201 (2006)
 
 namespace
 {
+__global__ void zero_force_for_fixed_group(
+  const int num_atoms,
+  const int fixed_group,
+  const int* group_id,
+  double* force_per_atom)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < num_atoms) {
+    if (group_id[n] == fixed_group) {
+      force_per_atom[n] = 0.0;
+      force_per_atom[n + num_atoms] = 0.0;
+      force_per_atom[n + 2 * num_atoms] = 0.0;
+    }
+  }
+}
+
 __global__ void gpu_multiply(const int size, double a, double* b, double* c)
 {
   int n = blockDim.x * blockIdx.x + threadIdx.x;
@@ -125,6 +141,17 @@ void Minimizer_FIRE::compute(
   for (int step = 0; step < number_of_steps_; ++step) {
     force.compute(
       box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+
+    // Zero out the forces on the fixed-group atoms, so that their velocities
+    // stay zero and their positions never change during the minimization.
+    if (fixed_group_ >= 0) {
+      zero_force_for_fixed_group<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+        number_of_atoms_,
+        fixed_group_,
+        group[fixed_grouping_method_].label.data(),
+        atom.force_per_atom.data());
+    }
+
     calculate_force_square_max(atom.force_per_atom);
     const double force_max = sqrt(cpu_force_square_max_[0]);
     calculate_total_potential(atom.potential_per_atom);
