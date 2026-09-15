@@ -25,7 +25,7 @@
 #include <sstream>
 #include <string>
 
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) && !defined(USE_MUSA)
 #include <cuda_runtime.h>
 #include <dlfcn.h>
 #include <limits.h>
@@ -61,7 +61,7 @@ const char* mode_name(const NEP_Compile_Mode mode)
   }
 }
 
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) && !defined(USE_MUSA)
 
 bool file_exists(const std::string& filename)
 {
@@ -385,6 +385,9 @@ NEP_Compile::NEP_Compile(const NEP_Compile_Config& config)
 #elif defined(_WIN32)
   (void)config;
   warning_compile("nep_compile on is supported on Linux only.");
+#elif defined(USE_MUSA)
+  (void)config;
+  warning_compile("nep_compile on is not supported by the MUSA build.");
 #else
   valid_ = compile(config);
 #endif
@@ -392,7 +395,7 @@ NEP_Compile::NEP_Compile(const NEP_Compile_Config& config)
 
 NEP_Compile::~NEP_Compile()
 {
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) !defined(USE_MUSA)
   if (library_ != nullptr) {
     dlclose(library_);
     library_ = nullptr;
@@ -403,7 +406,7 @@ NEP_Compile::~NEP_Compile()
 
 bool NEP_Compile::compile(const NEP_Compile_Config& config)
 {
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) !defined(USE_MUSA)
   if (!validate_config(config)) {
     return false;
   }
@@ -609,7 +612,7 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
 
 void NEP_Compile::cleanup_files()
 {
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) !defined(USE_MUSA)
   if (!config_file_.empty()) {
     std::remove(config_file_.c_str());
     config_file_.clear();
@@ -633,7 +636,7 @@ void NEP_Compile::check_launch(
   const int error_code,
   const char* kernel_name)
 {
-#if !defined(USE_HIP) && !defined(_WIN32)
+#if !defined(USE_HIP) && !defined(_WIN32) !defined(USE_MUSA)
   if (error_code != static_cast<int>(cudaSuccess)) {
     std::cerr << "Specialized kernel launch failed in "
               << kernel_name << ": "

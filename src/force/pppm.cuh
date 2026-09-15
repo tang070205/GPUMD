@@ -18,6 +18,8 @@
 #include "model/box.cuh"
 #ifdef USE_HIP
   #include <hipfft/hipfft.h>
+#elif defined(USE_MUSA)
+  #include <mufft.h>
 #else
   #include <cufft.h>
 #endif
