@@ -231,7 +231,7 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
     num_atoms.clear();
     velocities.clear();
     masses.clear();
-    while (idx < num_param) {
+    while (idx < num_param && tokens[idx] != "out") {
       if (idx + 3 > num_param) {
         PRINT_INPUT_ERROR("deposit atom species requires element, number, and velocity.\n");
       }
@@ -256,7 +256,7 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
       ++idx;
 
       double mass = 0.0;
-      if (idx < num_param && is_valid_real(tokens[idx], &mass)) {
+      if (idx < num_param && tokens[idx] != "out" && is_valid_real(tokens[idx], &mass)) {
         if (mass <= 0) {
           PRINT_INPUT_ERROR("deposit mass should be positive.\n");
         }
@@ -282,12 +282,12 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
     ++idx;
 
     if (direction < 0) {
-      if (idx != num_param) {
+      if (idx < num_param && tokens[idx] != "out") {
         PRINT_INPUT_ERROR("deposit file mode with direction=-1 should not have parameters after the file name.\n");
       }
       has_file_velocity = false;
     } else {
-      if (idx >= num_param) {
+      if (idx >= num_param || tokens[idx] == "out") {
         PRINT_INPUT_ERROR("deposit file mode with a direction should be followed by a velocity.\n");
       }
       if (!is_valid_real(tokens[idx], &file_velocity)) {
@@ -295,11 +295,29 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
       }
       has_file_velocity = true;
       ++idx;
-      if (idx != num_param) {
+      if (idx < num_param && tokens[idx] != "out") {
         PRINT_INPUT_ERROR("deposit file mode should not have extra parameters after the velocity.\n");
       }
     }
     read_file_atoms();
+  }
+
+  if (idx < num_param) {
+    if (tokens[idx] != "out") {
+      PRINT_INPUT_ERROR("deposit unexpected parameter after atom/file specification.\n");
+    }
+    if (direction < 0) {
+      PRINT_INPUT_ERROR("deposit out requires direction >= 0.\n");
+    }
+    ++idx;
+    if (idx >= num_param || !is_valid_real(tokens[idx], &out_cutoff)) {
+      PRINT_INPUT_ERROR("deposit out should be a real number.\n");
+    }
+    has_out = true;
+    ++idx;
+    if (idx != num_param) {
+      PRINT_INPUT_ERROR("deposit should not have parameters after out.\n");
+    }
   }
 }
 
@@ -520,6 +538,43 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     l[m] = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   }
 
+  int pos_offset = 0;
+  bool has_pos = false;
+  for (const auto& property : properties) {
+    if (property.first == "pos") {
+      has_pos = true;
+      break;
+    }
+    pos_offset += property.second;
+  }
+  if (has_out && (!has_pos || direction < 0)) {
+    PRINT_INPUT_ERROR("deposit out requires the pos property and direction >= 0.\n");
+  }
+  const bool can_filter = has_out;
+
+  std::vector<std::string> kept_lines;
+  kept_lines.reserve(original_num_atoms);
+  std::vector<int> max_group(num_group_methods, -1);
+  for (int n = 0; n < original_num_atoms; ++n) {
+    std::getline(input, line);
+    const std::vector<std::string> tokens = get_tokens(line);
+    if (has_group) {
+      for (int g = 0; g < num_group_methods; ++g) {
+        const int group_label = get_int_from_token(tokens[group_offset + g], __FILE__, __LINE__);
+        max_group[g] = std::max(max_group[g], group_label);
+      }
+    }
+    if (can_filter) {
+      const double coord =
+        get_double_from_token(tokens[pos_offset + direction], __FILE__, __LINE__);
+      if (coord > out_cutoff) {
+        continue;
+      }
+    }
+    kept_lines.emplace_back(line);
+  }
+  input.close();
+
 #ifdef DEBUG
   rng.seed(12345678 + deposition_count);
 #endif
@@ -533,22 +588,11 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     exit(1);
   }
 
-  out << original_num_atoms + total_new_atoms << "\n";
+  out << static_cast<int>(kept_lines.size()) + total_new_atoms << "\n";
   out << comment_line << "\n";
-
-  std::vector<int> max_group(num_group_methods, -1);
-  for (int n = 0; n < original_num_atoms; ++n) {
-    std::getline(input, line);
-    out << line << "\n";
-    if (has_group) {
-      std::vector<std::string> tokens = get_tokens(line);
-      for (int g = 0; g < num_group_methods; ++g) {
-        const int group_label = get_int_from_token(tokens[group_offset + g], __FILE__, __LINE__);
-        max_group[g] = std::max(max_group[g], group_label);
-      }
-    }
+  for (const auto& kept_line : kept_lines) {
+    out << kept_line << "\n";
   }
-  input.close();
 
   if (has_group && deposited_groups.empty()) {
     deposited_groups.resize(num_group_methods);
